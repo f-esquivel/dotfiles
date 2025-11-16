@@ -334,7 +334,7 @@ setup_ghostty() {
 install_zim() {
     info "Installing Zim (Zsh plugin manager)..."
 
-    ZIM_HOME="${HOME}/.zim"
+    export ZIM_HOME="${HOME}/.zim"
 
     if [[ ! -e ${ZIM_HOME}/zimfw.zsh ]]; then
         if [ "$DRY_RUN" = true ]; then
@@ -353,7 +353,7 @@ install_zim() {
         if [ "$DRY_RUN" = true ]; then
             info "[DRY RUN] Would install Zim modules"
         else
-            zsh -c "source ${ZIM_HOME}/zimfw.zsh install"
+            ZIM_HOME="${HOME}/.zim" zsh -c "source \${ZIM_HOME}/zimfw.zsh install"
             success "Zim modules installed"
         fi
     fi
