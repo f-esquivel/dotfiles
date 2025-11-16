@@ -1,0 +1,23 @@
+# Machine-specific SSH configuration
+# Copy this to ~/.ssh/config.local and customize for your machine
+# This file is NOT tracked in git
+
+# -----------------------------------------------------------------------------
+# SSH Key Paths (customize these for your machine)
+# -----------------------------------------------------------------------------
+
+# Personal GitHub
+Host github.com
+  IdentityFile ~/.ssh/id_ed25519
+
+# GitLab
+Host gitlab.com
+  IdentityFile ~/.ssh/id_rsa
+
+# Work GitHub (designli)
+Host dgh
+  IdentityFile ~/.ssh/id_designli_gh
+
+# -----------------------------------------------------------------------------
+# Add any machine-specific hosts below
+# -----------------------------------------------------------------------------

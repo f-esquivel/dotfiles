@@ -1,0 +1,71 @@
+# =============================================================================
+# USER CONFIGURATION
+# =============================================================================
+# This file contains user-specific settings, paths, aliases, and environment
+# variables. It's sourced by .zshrc after Zim initialization.
+
+# -----------------------------------------------------------------------------
+# Dotfiles Directory Detection
+# -----------------------------------------------------------------------------
+
+# Detect dotfiles directory by checking common locations
+if [ -z "$DOTFILES_DIR" ]; then
+    # Try to detect based on this file's location
+    if [ -n "$ZDOTDIR" ]; then
+        export DOTFILES_DIR="$(cd "$ZDOTDIR/.." && pwd)"
+    elif [ -d "$HOME/dotfiles" ]; then
+        export DOTFILES_DIR="$HOME/dotfiles"
+    elif [ -d "$HOME/.dotfiles" ]; then
+        export DOTFILES_DIR="$HOME/.dotfiles"
+    elif [ -d "$HOME/.dots" ]; then
+        export DOTFILES_DIR="$HOME/.dots"
+    else
+        # Fallback: assume this file is in dotfiles/zsh/
+        export DOTFILES_DIR="$(cd "$(dirname "${(%):-%x}")/.." && pwd 2>/dev/null || echo "$HOME/dotfiles")"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# PATH Configuration
+# -----------------------------------------------------------------------------
+
+# IDEA commands
+export PATH="$HOME/.ides:$PATH"
+
+# Yarn
+export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+
+# PostgreSQL@15
+export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"
+
+# -----------------------------------------------------------------------------
+# NVM Configuration (Lazy Loading)
+# -----------------------------------------------------------------------------
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# Load lazy NVM wrapper
+[ -s "$DOTFILES_DIR/utils/.lazy-nvm.sh" ] && source "$DOTFILES_DIR/utils/.lazy-nvm.sh"
+
+# -----------------------------------------------------------------------------
+# Environment Variables
+# -----------------------------------------------------------------------------
+
+export BAT_THEME="Nord"
+export BUN_INSTALL="$HOME/.bun"
+export OPENCODE_MODEL="gemini-2.5-pro"
+
+# -----------------------------------------------------------------------------
+# Aliases
+# -----------------------------------------------------------------------------
+
+alias rzsh="source ~/.zshrc"
+alias nr="npm run"
+
+# -----------------------------------------------------------------------------
+# Secrets (API Keys, Tokens)
+# -----------------------------------------------------------------------------
+
+# Load secrets from separate file (not tracked in git)
+[ -s "$DOTFILES_DIR/zsh/.zshrc.secrets" ] && source "$DOTFILES_DIR/zsh/.zshrc.secrets"

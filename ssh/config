@@ -1,0 +1,37 @@
+# Added by OrbStack: 'orb' SSH host for Linux machines
+# This only works if it's at the top of ssh_config (before any Host blocks).
+# This won't be added again if you remove it.
+Include ~/.orbstack/ssh/config
+
+# Load machine-specific configuration (SSH keys, local hosts)
+# Note: SSH doesn't support environment variables, so check common locations
+Include ~/dotfiles/ssh/config.local
+Include ~/.dotfiles/ssh/config.local
+Include ~/.dots/ssh/config.local
+
+# -----------------------------------------------------------------------------
+# GitLab Configuration
+# -----------------------------------------------------------------------------
+# Uses alternate SSH port (443) for restrictive firewalls
+Host gitlab.com
+  Hostname altssh.gitlab.com
+  User git
+  Port 443
+  PreferredAuthentications publickey
+  # IdentityFile defined in config.local
+
+# -----------------------------------------------------------------------------
+# GitHub Configuration
+# -----------------------------------------------------------------------------
+# Personal GitHub account
+Host github.com
+  AddKeysToAgent yes
+  # IdentityFile defined in config.local
+
+# Work/Organization GitHub (via shorthand 'dgh')
+Host dgh
+  HostName github.com
+  User git
+  IdentitiesOnly yes
+  # IdentityFile defined in config.local
+

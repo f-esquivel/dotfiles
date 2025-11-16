@@ -1,0 +1,19 @@
+# =============================================================================
+# Machine-Specific Brewfile
+# =============================================================================
+# Copy this to Brewfile.local and add your machine-specific packages
+# This file is NOT tracked in git
+
+# Example machine-specific packages:
+# brew "package-name"
+# cask "app-name"
+# vscode "extension-id"
+
+# Work-specific tools
+# brew "kubectl"
+# cask "slack"
+# cask "docker"
+
+# Personal tools
+# cask "spotify"
+# cask "discord"

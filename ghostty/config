@@ -1,0 +1,15 @@
+#theme = catppuccin-frappe
+# theme = catppuccin-macchiato
+# theme = catppuccin-macchiato
+# theme = rose-pine
+theme = TokyoNight Night
+
+font-family = "JetBrains Mono", Fira Code, Iosevka, Monaco
+
+window-inherit-font-size=false
+window-step-resize=true
+
+macos-titlebar-style=tabs
+
+font-size = 16
+keybind = shift+enter=text:\x1b\r

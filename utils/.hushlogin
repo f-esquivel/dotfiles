@@ -1,0 +1,2 @@
+# This file suppresses the system login message
+# Its presence in $HOME is enough - content doesn't matter

@@ -1,0 +1,113 @@
+# =============================================================================
+# Homebrew Bundle File
+# =============================================================================
+# Install all packages: brew bundle install --file=~/dotfiles/brew/Brewfile
+# Update Brewfile:      brew bundle dump --file=~/dotfiles/brew/Brewfile --force
+# Cleanup packages:     brew bundle cleanup --file=~/dotfiles/brew/Brewfile
+
+# -----------------------------------------------------------------------------
+# Taps (Third-party repositories)
+# -----------------------------------------------------------------------------
+
+tap "oven-sh/bun"
+
+# -----------------------------------------------------------------------------
+# CLI Tools & Utilities
+# -----------------------------------------------------------------------------
+
+brew "bat"              # Better cat with syntax highlighting
+brew "curl"             # Transfer data with URLs
+brew "fastfetch"        # System information tool
+brew "fzf"              # Fuzzy finder
+brew "gh"               # GitHub CLI
+brew "git"              # Version control
+brew "make"             # Build automation
+brew "mkcert"           # SSL certificate generation
+brew "nvm"              # Node version manager
+brew "ripgrep"          # Fast grep alternative
+
+# -----------------------------------------------------------------------------
+# Development Tools
+# -----------------------------------------------------------------------------
+
+brew "act"              # Run GitHub Actions locally
+brew "go"               # Go programming language
+
+# -----------------------------------------------------------------------------
+# Databases & Data Tools
+# -----------------------------------------------------------------------------
+
+brew "freetds"                                  # SQL Server protocol library
+brew "libpq"                                    # PostgreSQL library
+brew "pgvector"                                 # Vector similarity search for PostgreSQL
+brew "postgresql@15", restart_service: :changed # PostgreSQL database
+brew "redis", restart_service: :changed         # In-memory data store
+
+# -----------------------------------------------------------------------------
+# PHP & Composer
+# -----------------------------------------------------------------------------
+
+brew "composer"                            # PHP dependency manager
+brew "php@8.2", restart_service: :changed, link: true
+brew "pkgconf"                             # Package compiler helper
+brew "zlib"                                # Compression library
+
+# -----------------------------------------------------------------------------
+# Runtime Environments
+# -----------------------------------------------------------------------------
+
+brew "oven-sh/bun/bun"  # Fast JavaScript runtime
+
+# -----------------------------------------------------------------------------
+# GUI Applications (Casks)
+# -----------------------------------------------------------------------------
+
+# Development
+cask "ghostty"                  # Terminal emulator
+cask "ngrok"                    # Secure tunneling
+
+# Cloud & DevOps
+cask "gcloud-cli"               # Google Cloud CLI
+
+# Utilities
+cask "the-unarchiver"           # Archive extraction
+
+# Fonts
+cask "font-fira-code"           # Monospaced font with ligatures
+cask "font-iosevka"             # Slender monospaced font
+cask "font-jetbrains-mono"      # JetBrains monospaced font
+
+# -----------------------------------------------------------------------------
+# VSCode Extensions
+# -----------------------------------------------------------------------------
+
+# Themes & UI
+vscode "catppuccin.catppuccin-vsc"      # Catppuccin theme
+vscode "pixl-garden.bongocat"           # Bongo Cat status bar
+
+# Code Intelligence
+vscode "christian-kohler.path-intellisense"
+vscode "dbaeumer.vscode-eslint"
+vscode "editorconfig.editorconfig"
+vscode "esbenp.prettier-vscode"
+vscode "wix.vscode-import-cost"
+
+# AI Assistants
+vscode "coderabbit.coderabbit-vscode"
+vscode "google.geminicodeassist"
+vscode "sst-dev.opencode"
+
+# Language Support
+vscode "golang.go"
+vscode "ms-vscode.vscode-typescript-next"
+vscode "redhat.vscode-yaml"
+vscode "kennylong.kubernetes-yaml-formatter"
+
+# Tools & Utilities
+vscode "elijah-potter.harper"           # Grammar checker
+vscode "formulahendry.code-runner"
+vscode "foxundermoon.shell-format"
+vscode "github.vscode-github-actions"
+vscode "icrawl.discord-vscode"
+vscode "ms-azuretools.vscode-containers"
+vscode "yzhang.markdown-all-in-one"

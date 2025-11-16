@@ -1,0 +1,48 @@
+# Personal/machine-specific configurations
+.gitconfig.local
+*.local
+*/.zshrc.secrets
+.zshrc.secrets
+ssh/config.local
+**/config.local
+brew/Brewfile.local
+
+# Secrets and credentials
+*secret*
+*password*
+*token*
+*.pem
+*.key
+.env
+.env.*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Cache directories
+*.cache/
+.zsh_sessions/
+.zcompdump*
+
+# Logs
+*.log
+
+# Local testing/temporary files
+tmp/
+temp/
+test-local/
