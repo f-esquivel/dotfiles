@@ -9,6 +9,7 @@ brew/Brewfile.local
 
 # Secrets and credentials
 *secret*
+!*.secrets.template
 *password*
 *token*
 *.pem
