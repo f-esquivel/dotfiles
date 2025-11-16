@@ -16,6 +16,9 @@ brew/Brewfile.local
 .env
 .env.*
 
+# Game config backups (only keep latest configs, not backups)
+games/**/backup-*
+
 # macOS
 .DS_Store
 .AppleDouble

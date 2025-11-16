@@ -409,6 +409,16 @@ main() {
     install_zim
     echo ""
 
+    # Optional: Import game configs
+    if [ -d "$DOTFILES_DIR/games/lol" ] && [ -n "$(ls -A "$DOTFILES_DIR/games/lol" 2>/dev/null | grep -v README)" ]; then
+        read -p "Import League of Legends configs? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            "$DOTFILES_DIR/scripts/lol-import.sh" || warn "LoL import failed (non-critical)"
+            echo ""
+        fi
+    fi
+
     # Final message
     if [ "$DRY_RUN" = true ]; then
         echo "╔═══════════════════════════════════════╗"

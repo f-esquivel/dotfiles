@@ -1,0 +1,270 @@
+page-settings:
+    data:
+        pages: []
+        perShardPerkBooks:
+            la1:
+                currentPageId: 1192405803
+                pages:
+                -   autoModifiedSelections: []
+                    current: false
+                    id: 690110157
+                    isActive: false
+                    isDeletable: true
+                    isEditable: true
+                    isRecommendationOverride: false
+                    isTemporary: false
+                    isValid: true
+                    lastModified: 1760146770954
+                    name: "idk"
+                    order: 1
+                    pageKeystone:
+                        iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/LethalTempo/LethalTempoTemp.png"
+                        id: 8008
+                        name: "Lethal Tempo"
+                        slotType: "kKeyStone"
+                        styleId: 8000
+                    primaryStyleIconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/precision_icon_16.svg"
+                    primaryStyleId: 8000
+                    primaryStyleName: "Precision"
+                    quickPlayChampionIds: []
+                    recommendationChampionId: 0
+                    recommendationIndex: -1
+                    runeRecommendationId: ""
+                    secondaryStyleIconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/inspiration_icon_16.svg"
+                    secondaryStyleName: "Inspiration"
+                    selectedPerkIds:
+                    - 8008
+                    - 8009
+                    - 9104
+                    - 8017
+                    - 8347
+                    - 8345
+                    - 5005
+                    - 5008
+                    - 5011
+                    subStyleId: 8300
+                    tooltipBgPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/p8000_s8300_k8008.jpg"
+                    uiPerks:
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/LethalTempo/LethalTempoTemp.png"
+                        id: 8008
+                        name: "Lethal Tempo"
+                        slotType: "kKeyStone"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/PresenceOfMind/PresenceOfMind.png"
+                        id: 8009
+                        name: "Presence of Mind"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/LegendAlacrity/LegendAlacrity.png"
+                        id: 9104
+                        name: "Legend: Alacrity"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/CutDown/CutDown.png"
+                        id: 8017
+                        name: "Cut Down"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/CosmicInsight/CosmicInsight.png"
+                        id: 8347
+                        name: "Cosmic Insight"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8300
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/BiscuitDelivery/BiscuitDelivery.png"
+                        id: 8345
+                        name: "Biscuit Delivery"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8300
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsAttackSpeedIcon.png"
+                        id: 5005
+                        name: "Attack Speed"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsAdaptiveForceIcon.png"
+                        id: 5008
+                        name: "Adaptive Force"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsHealthScalingIcon.png"
+                        id: 5011
+                        name: "Health"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                -   autoModifiedSelections: []
+                    current: false
+                    id: 793865813
+                    isActive: false
+                    isDeletable: true
+                    isEditable: true
+                    isRecommendationOverride: false
+                    isTemporary: false
+                    isValid: true
+                    lastModified: 1758810837922
+                    name: "Entropy"
+                    order: 1
+                    pageKeystone:
+                        iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/PressTheAttack/PressTheAttack.png"
+                        id: 8005
+                        name: "Press the Attack"
+                        slotType: "kKeyStone"
+                        styleId: 8000
+                    primaryStyleIconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/precision_icon_16.svg"
+                    primaryStyleId: 8000
+                    primaryStyleName: "Precision"
+                    quickPlayChampionIds: []
+                    recommendationChampionId: 0
+                    recommendationIndex: -1
+                    runeRecommendationId: ""
+                    secondaryStyleIconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/inspiration_icon_16.svg"
+                    secondaryStyleName: "Inspiration"
+                    selectedPerkIds:
+                    - 8005
+                    - 8009
+                    - 9104
+                    - 8017
+                    - 8345
+                    - 8347
+                    - 5005
+                    - 5008
+                    - 5011
+                    subStyleId: 8300
+                    tooltipBgPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/p8000_s8300_k8005.jpg"
+                    uiPerks:
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/PressTheAttack/PressTheAttack.png"
+                        id: 8005
+                        name: "Press the Attack"
+                        slotType: "kKeyStone"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/PresenceOfMind/PresenceOfMind.png"
+                        id: 8009
+                        name: "Presence of Mind"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/LegendAlacrity/LegendAlacrity.png"
+                        id: 9104
+                        name: "Legend: Alacrity"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/CutDown/CutDown.png"
+                        id: 8017
+                        name: "Cut Down"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/BiscuitDelivery/BiscuitDelivery.png"
+                        id: 8345
+                        name: "Biscuit Delivery"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8300
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/CosmicInsight/CosmicInsight.png"
+                        id: 8347
+                        name: "Cosmic Insight"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8300
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsAttackSpeedIcon.png"
+                        id: 5005
+                        name: "Attack Speed"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsAdaptiveForceIcon.png"
+                        id: 5008
+                        name: "Adaptive Force"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsHealthScalingIcon.png"
+                        id: 5011
+                        name: "Health"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                -   autoModifiedSelections: []
+                    current: false
+                    id: 1862410397
+                    isActive: false
+                    isDeletable: true
+                    isEditable: true
+                    isRecommendationOverride: false
+                    isTemporary: false
+                    isValid: true
+                    lastModified: 1759978226793
+                    name: "Irelia"
+                    order: 2
+                    pageKeystone:
+                        iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/Conqueror/Conqueror.png"
+                        id: 8010
+                        name: "Conqueror"
+                        slotType: "kKeyStone"
+                        styleId: 8000
+                    primaryStyleIconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/precision_icon_16.svg"
+                    primaryStyleId: 8000
+                    primaryStyleName: "Precision"
+                    quickPlayChampionIds: []
+                    recommendationChampionId: 0
+                    recommendationIndex: -1
+                    runeRecommendationId: ""
+                    secondaryStyleIconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/inspiration_icon_16.svg"
+                    secondaryStyleName: "Inspiration"
+                    selectedPerkIds:
+                    - 8010
+                    - 9111
+                    - 9104
+                    - 8299
+                    - 8345
+                    - 8316
+                    - 5005
+                    - 5008
+                    - 5011
+                    subStyleId: 8300
+                    tooltipBgPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/p8000_s8300_k8010.jpg"
+                    uiPerks:
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/Conqueror/Conqueror.png"
+                        id: 8010
+                        name: "Conqueror"
+                        slotType: "kKeyStone"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/Triumph.png"
+                        id: 9111
+                        name: "Triumph"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Precision/LegendAlacrity/LegendAlacrity.png"
+                        id: 9104
+                        name: "Legend: Alacrity"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Sorcery/LastStand/LastStand.png"
+                        id: 8299
+                        name: "Last Stand"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8000
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/BiscuitDelivery/BiscuitDelivery.png"
+                        id: 8345
+                        name: "Biscuit Delivery"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8300
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/Styles/Inspiration/JackOfAllTrades/JackofAllTrades2.png"
+                        id: 8316
+                        name: "Jack Of All Trades"
+                        slotType: "kMixedRegularSplashable"
+                        styleId: 8300
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsAttackSpeedIcon.png"
+                        id: 5005
+                        name: "Attack Speed"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsAdaptiveForceIcon.png"
+                        id: 5008
+                        name: "Adaptive Force"
+                        slotType: "kStatMod"
+                        styleId: 8400
+                    -   iconPath: "/lol-game-data/assets/v1/perk-images/StatMods/StatModsHealthScalingIcon.png"
+                        id: 5011
+                        name: "Health"
+                        slotType: "kStatMod"
+                        styleId: 8400
+        settings:
+            gameplayPatchVersionSeen: "14.1"
+            gameplayUpdatedPerksSeen:
+            - 8224
+            gridModeEnabled: true
+            showLongDescriptions: true
+            showPresetPages: false
+    schemaVersion: 5

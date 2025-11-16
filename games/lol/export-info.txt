@@ -1,0 +1,10 @@
+Export Date: Sun Nov 16 01:43:42 CST 2025
+Source: /Applications/League of Legends.app/Contents/LoL/Config
+
+Files exported:
+  - PersistedSettings.json
+  - game.cfg
+  - input.ini
+  - LCUAccountPreferences.yaml
+  - PerksPreferences.yaml
+  - ItemSets.json
