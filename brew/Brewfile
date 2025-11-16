@@ -65,6 +65,7 @@ brew "oven-sh/bun/bun"  # Fast JavaScript runtime
 # Development
 cask "ghostty"                  # Terminal emulator
 cask "ngrok"                    # Secure tunneling
+cask "visual-studio-code"       # Code editor
 
 # Cloud & DevOps
 cask "gcloud-cli"               # Google Cloud CLI
