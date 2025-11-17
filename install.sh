@@ -328,7 +328,37 @@ setup_ghostty() {
 }
 
 # =============================================================================
-# 8. Install Zim (Zsh Plugin Manager)
+# 8. Setup JetBrains Toolbox
+# =============================================================================
+
+setup_jetbrains() {
+    info "Setting up JetBrains Toolbox configuration..."
+
+    # Create JetBrains Toolbox config directory if it doesn't exist
+    local toolbox_config_dir="$HOME/Library/Application Support/JetBrains/Toolbox"
+
+    if [ "$DRY_RUN" = false ]; then
+        mkdir -p "$toolbox_config_dir"
+    else
+        info "[DRY RUN] Would create $toolbox_config_dir directory"
+    fi
+
+    # Symlink JetBrains Toolbox settings
+    if [ -f "$DOTFILES_DIR/jetbrains/.settings.json" ]; then
+        safe_symlink "$DOTFILES_DIR/jetbrains/.settings.json" "$toolbox_config_dir/.settings.json" "JetBrains Toolbox settings"
+
+        if [ "$DRY_RUN" = false ]; then
+            success "JetBrains Toolbox configuration linked"
+            info "Shell scripts will be created in: /usr/local/bin"
+            warn "Restart JetBrains Toolbox for changes to take effect"
+        fi
+    else
+        warn "JetBrains Toolbox config not found, skipping"
+    fi
+}
+
+# =============================================================================
+# 9. Install Zim (Zsh Plugin Manager)
 # =============================================================================
 
 install_zim() {
@@ -404,6 +434,9 @@ main() {
     echo ""
 
     setup_ghostty
+    echo ""
+
+    setup_jetbrains
     echo ""
 
     install_zim
