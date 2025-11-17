@@ -63,14 +63,21 @@ brew "oven-sh/bun/bun"  # Fast JavaScript runtime
 # -----------------------------------------------------------------------------
 
 # Development
+cask "appcleaner"               # Thorough application uninstaller
+cask "claude-code"              # Claude AI code editor
 cask "ghostty"                  # Terminal emulator
+cask "jetbrains-toolbox"        # JetBrains tools manager
 cask "ngrok"                    # Secure tunneling
+cask "notion"                   # All-in-one workspace
+cask "orbstack"                 # Docker & Linux container manager
+cask "postman"                  # API development platform
 cask "visual-studio-code"       # Code editor
 
 # Cloud & DevOps
 cask "gcloud-cli"               # Google Cloud CLI
 
 # Utilities
+cask "raycast"                  # Spotlight replacement & productivity tool
 cask "the-unarchiver"           # Archive extraction
 
 # Fonts
