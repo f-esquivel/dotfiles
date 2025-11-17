@@ -339,8 +339,27 @@ setup_jetbrains() {
 
     if [ "$DRY_RUN" = false ]; then
         mkdir -p "$toolbox_config_dir"
+        # Create ~/.local/bin for shell scripts (user-owned, no sudo needed)
+        mkdir -p "$HOME/.local/bin"
     else
         info "[DRY RUN] Would create $toolbox_config_dir directory"
+        info "[DRY RUN] Would create ~/.local/bin directory"
+    fi
+
+    # Create .settings.json from template if it doesn't exist
+    if [ ! -f "$DOTFILES_DIR/jetbrains/.settings.json" ]; then
+        if [ "$DRY_RUN" = false ]; then
+            if [ -f "$DOTFILES_DIR/jetbrains/.settings.json.template" ]; then
+                cp "$DOTFILES_DIR/jetbrains/.settings.json.template" "$DOTFILES_DIR/jetbrains/.settings.json"
+                info "Created .settings.json from template"
+                warn "JetBrains Toolbox will add your account info when you sign in"
+            else
+                warn "JetBrains Toolbox template not found, skipping"
+                return 0
+            fi
+        else
+            info "[DRY RUN] Would create .settings.json from template"
+        fi
     fi
 
     # Symlink JetBrains Toolbox settings
@@ -349,7 +368,7 @@ setup_jetbrains() {
 
         if [ "$DRY_RUN" = false ]; then
             success "JetBrains Toolbox configuration linked"
-            info "Shell scripts will be created in: /usr/local/bin"
+            info "Shell scripts will be created in: ~/.local/bin"
             warn "Restart JetBrains Toolbox for changes to take effect"
         fi
     else

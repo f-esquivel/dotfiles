@@ -1,14 +1,11 @@
 {
     "shell_scripts": {
-        "location": "/usr/local/bin"
+        "location": "~/.local/bin"
     },
     "statistics": {
         "allow": true
     },
     "tools": {
         "update_all_automatically": true
-    },
-    "jetbrains_account": {
-        "active": "YOUR_ACCOUNT_ID"
     }
 }

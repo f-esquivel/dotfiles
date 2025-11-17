@@ -8,12 +8,12 @@ JetBrains Toolbox manages installation and updates for JetBrains IDEs (IntelliJ 
 
 ## Configuration Files
 
-- **`.settings.json`**: Main configuration file (git-tracked)
-- **`.settings.json.template`**: Template with all available options
+- **`.settings.json`**: Main configuration file (git-ignored, contains your account ID)
+- **`.settings.json.template`**: Template with portable settings (git-tracked)
 
 ## Shell Scripts Location
 
-The configuration sets the shell scripts location to `/usr/local/bin`, which means JetBrains Toolbox will create command-line launchers in this directory.
+The configuration sets the shell scripts location to `~/.local/bin`, which means JetBrains Toolbox will create command-line launchers in this directory.
 
 **Available commands after installation:**
 - `webstorm` - WebStorm IDE
@@ -22,11 +22,12 @@ The configuration sets the shell scripts location to `/usr/local/bin`, which mea
 - `goland` - GoLand
 - etc.
 
-**Why `/usr/local/bin`?**
-- Already in your `$PATH` by default on macOS
-- Standard location for user-installed command-line tools
-- No additional PATH configuration needed
-- Consistent with Homebrew's approach
+**Why `~/.local/bin`?**
+- User-owned directory (no sudo required)
+- Follows XDG Base Directory specification
+- Works consistently across all machines
+- Automatically created by install script
+- Added to `$PATH` in `.zshrc.user`
 
 ## Setup
 
@@ -61,7 +62,7 @@ To customize settings, edit `jetbrains/.settings.json`:
 ```json
 {
     "shell_scripts": {
-        "location": "/usr/local/bin"  // Change to custom location if needed
+        "location": "~/.local/bin"  // Change to custom location if needed
     },
     "statistics": {
         "allow": true                  // Allow usage statistics
@@ -72,7 +73,7 @@ To customize settings, edit `jetbrains/.settings.json`:
 }
 ```
 
-**Note**: The `jetbrains_account` section is intentionally omitted from the tracked file as it contains your personal account ID. This will be added automatically by JetBrains Toolbox when you sign in.
+**Note**: The `jetbrains_account` section is intentionally omitted from the template. JetBrains Toolbox will automatically add your account information to `.settings.json` when you sign in. Since `.settings.json` is git-ignored, your account ID stays private.
 
 ## Verification
 
@@ -86,7 +87,7 @@ ls -la ~/Library/Application\ Support/JetBrains/Toolbox/.settings.json
 cat ~/Library/Application\ Support/JetBrains/Toolbox/.settings.json | grep location
 
 # Test command-line launcher (after installing an IDE)
-which webstorm  # Should show /usr/local/bin/webstorm
+which webstorm  # Should show /Users/frank/.local/bin/webstorm
 ```
 
 ## Troubleshooting
@@ -95,19 +96,22 @@ which webstorm  # Should show /usr/local/bin/webstorm
 
 1. Open JetBrains Toolbox
 2. Go to Settings (gear icon)
-3. Verify "Shell scripts location" shows `/usr/local/bin`
+3. Verify "Shell scripts location" shows `~/.local/bin`
 4. Click "Generate" button if needed
 
-### Permission issues
+### Directory not writable
 
-If `/usr/local/bin` doesn't exist or has permission issues:
+If you see "directory not writable" error:
 
 ```bash
-# Create directory if needed
-sudo mkdir -p /usr/local/bin
+# Verify directory exists and is owned by you
+ls -ld ~/.local/bin
 
-# Fix permissions
-sudo chown -R $(whoami) /usr/local/bin
+# Create if needed
+mkdir -p ~/.local/bin
+
+# Verify it's in your PATH
+echo $PATH | grep -o "$HOME/.local/bin"
 ```
 
 ### Settings not applying

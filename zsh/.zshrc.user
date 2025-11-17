@@ -29,6 +29,9 @@ fi
 # PATH Configuration
 # -----------------------------------------------------------------------------
 
+# Local binaries (for user-installed tools like JetBrains shell scripts)
+export PATH="$HOME/.local/bin:$PATH"
+
 # Yarn
 export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 

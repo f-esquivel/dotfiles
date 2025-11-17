@@ -6,6 +6,7 @@
 ssh/config.local
 **/config.local
 brew/Brewfile.local
+jetbrains/.settings.json
 
 # Secrets and credentials
 *secret*
