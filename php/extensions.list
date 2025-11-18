@@ -1,0 +1,21 @@
+# =============================================================================
+# PHP PECL Extensions List
+# =============================================================================
+# This file tracks PECL extensions that should be installed
+# Format: extension_name@version (or just extension_name for latest)
+#
+# Usage:
+#   Install all: ~/dotfiles/scripts/php-extensions.sh install
+#   List current: ~/dotfiles/scripts/php-extensions.sh list
+# =============================================================================
+
+# Common Extensions (uncomment as needed)
+redis                    # Redis client
+imagick                  # ImageMagick for PHP
+xdebug                   # Debugger and profiler
+# apcu                     # APCu caching
+# mongodb                  # MongoDB driver
+# memcached                # Memcached client
+# swoole                   # Async programming framework
+
+# Add your extensions below:

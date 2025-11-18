@@ -68,6 +68,14 @@ dotfiles/
 │   ├── .settings.json.template      # Template with all options
 │   └── README.md                    # JetBrains setup documentation
 │
+├── php/                             # PHP configuration management
+│   ├── README.md                    # PHP setup documentation
+│   ├── conf.d/                      # Custom INI files
+│   │   ├── custom.ini               # Main PHP settings (git-tracked)
+│   │   ├── custom.ini.template      # Template for local overrides
+│   │   └── custom.ini.local         # Machine-specific settings (git-ignored)
+│   └── extensions.list              # PECL extensions to track/install
+│
 ├── utils/                           # Utility scripts and configs
 │   ├── .lazy-nvm.sh                 # Lazy-loading NVM wrapper
 │   ├── .npmrc                       # NPM configuration
@@ -86,6 +94,9 @@ dotfiles/
 └── scripts/                         # Maintenance and utility scripts
     ├── install.sh (root)            # See above
     ├── update.sh                    # Updates all components
+    ├── php-setup.sh                 # Set up PHP configuration symlinks
+    ├── php-extensions.sh            # Manage PECL extensions
+    ├── postgres-extensions.sh       # Build PostgreSQL extensions from source
     ├── lol-export.sh                # Export LoL settings from game
     ├── lol-import.sh                # Import LoL settings to game
     └── macos-defaults.sh            # macOS system preferences
@@ -120,6 +131,11 @@ dotfiles/
 │  │   ├─► .gitconfig (aliases, settings, includes)      │
 │  │   └─► .gitconfig.* (directory-based identities)     │
 │  │                                                       │
+│  ├─► PHP Configuration                                  │
+│  │   ├─► php/conf.d/custom.ini (survives upgrades)     │
+│  │   ├─► php/extensions.list (PECL tracking)           │
+│  │   └─► scripts/php-*.sh (setup & management)         │
+│  │                                                       │
 │  ├─► Terminal Configuration                             │
 │  │   ├─► ghostty/config (theme, fonts)                 │
 │  │   └─► utils/ (npmrc, hushlogin, lazy-nvm)          │
@@ -146,7 +162,7 @@ dotfiles/
 - **Terminal**: Ghostty (modern terminal emulator)
 - **Version Control**: Git with custom aliases
 - **Node Runtime**: NVM (lazy-loaded for performance) + Node.js LTS (auto-installed)
-- **Development**: Go, PHP 8.2, Bun, act (GitHub Actions locally)
+- **Development**: Go, PHP (version-agnostic), Bun, act (GitHub Actions locally)
 - **Databases**: PostgreSQL 15, Redis, pgvector
 - **CLI Tools**: fzf, ripgrep, bat, gh (GitHub CLI), nvm, git
 - **Code Editor**: Visual Studio Code with curated extensions
@@ -242,6 +258,42 @@ brew bundle check --file=~/dotfiles/brew/Brewfile
 brew bundle cleanup --file=~/dotfiles/brew/Brewfile --dry-run  # Preview first
 brew bundle cleanup --file=~/dotfiles/brew/Brewfile
 ```
+
+### PHP Configuration Management
+
+The repository includes PHP configuration that **survives Homebrew updates**:
+
+```bash
+# Initial setup (automatic during install.sh)
+~/dotfiles/scripts/php-setup.sh
+
+# Edit PHP settings (survives upgrades)
+vim ~/dotfiles/php/conf.d/custom.ini
+brew services restart php
+
+# Backup current PECL extensions
+~/dotfiles/scripts/php-extensions.sh backup
+
+# After PHP upgrade, reinstall extensions
+brew upgrade php
+~/dotfiles/scripts/php-extensions.sh reinstall
+brew services restart php
+
+# Track extensions in version control
+vim ~/dotfiles/php/extensions.list
+# Add: redis, imagick, xdebug, etc.
+
+# Install all tracked extensions
+~/dotfiles/scripts/php-extensions.sh install
+```
+
+**How it works:**
+- Custom `.ini` files are symlinked to PHP's `conf.d/` directory
+- Homebrew preserves `conf.d/` symlinks during updates
+- PECL extensions tracked in `extensions.list` for easy reinstall
+- Scripts auto-detect your active PHP version (works with 8.1, 8.2, 8.3, 8.4, etc.)
+
+See `php/README.md` for comprehensive documentation.
 
 ### Configuration Customization
 
@@ -635,6 +687,18 @@ Packages organized by category in specific order:
 | `jetbrains/.settings.json.template` | Template with portable settings (shell scripts location) | Yes |
 | `jetbrains/README.md` | JetBrains Toolbox setup documentation | Yes |
 
+### PHP Configuration
+
+| File | Purpose | Tracked? |
+|------|---------|----------|
+| `php/README.md` | PHP setup and extension management documentation | Yes |
+| `php/conf.d/custom.ini` | Main PHP configuration (survives Homebrew updates) | Yes |
+| `php/conf.d/custom.ini.template` | Template for local PHP overrides | Yes |
+| `php/conf.d/custom.ini.local` | Machine-specific PHP settings | No (git-ignored) |
+| `php/extensions.list` | PECL extensions to track and install | Yes |
+| `scripts/php-setup.sh` | Symlink PHP configuration to conf.d directory | Bash script |
+| `scripts/php-extensions.sh` | Manage PECL extensions (install/backup/reinstall) | Bash script |
+
 ### Games Configuration
 
 | File | Purpose | Tracked? |
@@ -810,6 +874,71 @@ ls -la ~/Library/Application\ Support/JetBrains/Toolbox/.settings.json
 # 5. Click "Generate" if needed
 ```
 
+### Managing PHP Configuration and Extensions
+
+```bash
+# Initial setup (done automatically via install.sh)
+~/dotfiles/scripts/php-setup.sh
+
+# Editing PHP configuration
+# 1. Edit shared configuration
+vim ~/dotfiles/php/conf.d/custom.ini
+
+# 2. Create machine-specific overrides (optional)
+cp ~/dotfiles/php/conf.d/custom.ini.template ~/dotfiles/php/conf.d/custom.ini.local
+vim ~/dotfiles/php/conf.d/custom.ini.local
+
+# 3. Re-run setup to create symlinks
+~/dotfiles/scripts/php-setup.sh
+
+# 4. Restart PHP
+brew services restart php
+
+# 5. Verify settings loaded
+php --ini
+php -i | grep memory_limit
+
+# Managing PECL Extensions
+# 1. Backup current extensions before making changes
+~/dotfiles/scripts/php-extensions.sh backup
+
+# 2. Review backup
+cat ~/dotfiles/php/extensions.list
+
+# 3. Edit to add/remove extensions
+vim ~/dotfiles/php/extensions.list
+# Add lines like: redis, imagick, xdebug
+
+# 4. Install all listed extensions
+~/dotfiles/scripts/php-extensions.sh install
+
+# 5. Restart PHP
+brew services restart php
+
+# After PHP Upgrade Workflow
+# 1. Upgrade PHP via Homebrew
+brew upgrade php
+
+# 2. Configuration files are preserved automatically ✓
+
+# 3. Reinstall PECL extensions
+~/dotfiles/scripts/php-extensions.sh reinstall
+
+# 4. Restart PHP
+brew services restart php
+
+# 5. Verify everything works
+php --version
+php --ini
+pecl list
+
+# Commit changes to dotfiles
+cd ~/dotfiles
+git add php/
+git commit -m "feat(php): update configuration and extensions"
+git push
+```
+
 ### Updating League of Legends Settings
 
 ```bash
@@ -852,7 +981,7 @@ git pull
 
 **Databases**: PostgreSQL 15, Redis, pgvector (vector similarity for PostgreSQL)
 
-**Runtimes**: Node.js (via nvm), Bun (fast JS runtime), PHP 8.2
+**Runtimes**: Node.js (via nvm), Bun (fast JS runtime), PHP (version-agnostic)
 
 **Databases & Libraries**: freetds, libpq, composer
 

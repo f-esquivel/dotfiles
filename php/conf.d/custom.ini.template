@@ -1,0 +1,17 @@
+; =============================================================================
+; Custom PHP Configuration Template
+; =============================================================================
+; Copy this to custom.ini.local for machine-specific settings
+; cp custom.ini.template custom.ini.local
+;
+; .local files are git-ignored and won't be committed
+; =============================================================================
+
+; Machine-specific settings
+; memory_limit = 1024M
+; max_execution_time = 600
+
+; Development-specific
+; xdebug.mode = debug
+; xdebug.start_with_request = yes
+; xdebug.client_port = 9003

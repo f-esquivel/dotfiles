@@ -65,6 +65,8 @@ alias cde="cd $HOME/Documents/Dev/Projects/ese/"
 alias gcpsql="$DOTFILES_DIR/utils/gcp-sql-proxy.sh"
 alias nr="npm run"
 alias pcc="php artisan config:cache"
+alias phpext="$DOTFILES_DIR/scripts/php-extensions.sh"
+alias phpsetup="$DOTFILES_DIR/scripts/php-setup.sh"
 alias rzsh="source $DOTFILES_DIR/zsh/.zshrc.user"
 
 # -----------------------------------------------------------------------------

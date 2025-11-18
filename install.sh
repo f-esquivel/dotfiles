@@ -298,7 +298,34 @@ setup_git() {
 }
 
 # =============================================================================
-# 7. Setup Utility Files
+# 7. Setup PHP Configuration
+# =============================================================================
+
+setup_php() {
+    info "Setting up PHP configuration..."
+
+    # Check if PHP is installed
+    if ! command -v php &> /dev/null; then
+        warn "PHP not installed. Skipping PHP configuration."
+        warn "Install with: brew install php (or brew install php@X.Y for specific version)"
+        return 0
+    fi
+
+    # Run the PHP setup script
+    if [ -f "$DOTFILES_DIR/scripts/php-setup.sh" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            "$DOTFILES_DIR/scripts/php-setup.sh" --dry-run
+        else
+            "$DOTFILES_DIR/scripts/php-setup.sh"
+            success "PHP configuration linked"
+        fi
+    else
+        warn "PHP setup script not found, skipping"
+    fi
+}
+
+# =============================================================================
+# 8. Setup Utility Files
 # =============================================================================
 
 setup_utils() {
@@ -320,7 +347,7 @@ setup_utils() {
 }
 
 # =============================================================================
-# 8. Setup Ghostty Terminal
+# 9. Setup Ghostty Terminal
 # =============================================================================
 
 setup_ghostty() {
@@ -345,7 +372,7 @@ setup_ghostty() {
 }
 
 # =============================================================================
-# 9. Setup JetBrains Toolbox
+# 10. Setup JetBrains Toolbox
 # =============================================================================
 
 setup_jetbrains() {
@@ -394,7 +421,7 @@ setup_jetbrains() {
 }
 
 # =============================================================================
-# 10. Install Zim (Zsh Plugin Manager)
+# 11. Install Zim (Zsh Plugin Manager)
 # =============================================================================
 
 install_zim() {
@@ -426,7 +453,7 @@ install_zim() {
 }
 
 # =============================================================================
-# 11. Install Node.js LTS via NVM
+# 12. Install Node.js LTS via NVM
 # =============================================================================
 
 install_node_lts() {
@@ -512,6 +539,9 @@ main() {
     echo ""
 
     setup_git
+    echo ""
+
+    setup_php
     echo ""
 
     setup_utils
