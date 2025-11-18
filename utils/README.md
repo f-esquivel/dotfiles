@@ -40,6 +40,7 @@ Lazy-loading wrapper for NVM (Node Version Manager). This significantly improves
 - `npx` - NPM package runner
 - `nest` - NestJS CLI
 - `lerna` - Lerna monorepo tool
+- `yarn` - Node package manager
 
 **How it works:**
 1. Creates placeholder functions for the above commands

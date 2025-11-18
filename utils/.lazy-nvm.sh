@@ -1,5 +1,5 @@
 # Single source of truth for lazy-loaded commands
-NVM_LAZY_COMMANDS=(nvm npm node npx nest lerna)
+NVM_LAZY_COMMANDS=(nvm npm node npx nest lerna yarn)
 
 function lazy_nvm {
   # Unset all wrapper functions (only if they exist)
