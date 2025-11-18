@@ -13,10 +13,18 @@ cd ~/dotfiles
 ./install.sh --dry-run
 
 # Run the installation script
+# This will install Homebrew packages, configure shell, and install Node.js LTS
 ./install.sh
 
 # Or run interactively (asks before overwriting)
 ./install.sh --interactive
+
+# Restart your shell
+exec zsh
+
+# Verify installation
+node --version
+npm --version
 ```
 
 ## Installation Options
@@ -40,6 +48,7 @@ Options:
 - **SSH** - SSH host configurations
 - **Ghostty** - Terminal emulator config
 - **Homebrew** - Package management via Brewfile
+- **Node.js** - Node.js LTS automatically installed via NVM (lazy-loaded)
 
 ### Directory Structure
 

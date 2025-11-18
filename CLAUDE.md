@@ -102,6 +102,9 @@ dotfiles/
 │  │   ├─► brew/Brewfile (packages + taps)               │
 │  │   └─► brew/Brewfile.local (machine-specific)        │
 │  │                                                       │
+│  ├─► NVM Setup                                           │
+│  │   └─► ~/.nvm/ directory (for Node versions)         │
+│  │                                                       │
 │  ├─► Zsh Configuration                                  │
 │  │   ├─► .zshrc (Zim + user config loading)            │
 │  │   ├─► .zshrc.user (aliases, paths, env vars)        │
@@ -127,6 +130,9 @@ dotfiles/
 │  ├─► Zim Plugin Manager                                 │
 │  │   └─► ~/.zim/ (installed at runtime)                │
 │  │                                                       │
+│  ├─► Node.js Runtime                                     │
+│  │   └─► LTS version (via NVM, auto-installed)         │
+│  │                                                       │
 │  └─► Games (Optional)                                   │
 │      └─► League of Legends config sync                 │
 │
@@ -139,7 +145,7 @@ dotfiles/
 - **Package Manager**: Homebrew + VSCode extensions
 - **Terminal**: Ghostty (modern terminal emulator)
 - **Version Control**: Git with custom aliases
-- **Node Runtime**: NVM (lazy-loaded for performance)
+- **Node Runtime**: NVM (lazy-loaded for performance) + Node.js LTS (auto-installed)
 - **Development**: Go, PHP 8.2, Bun, act (GitHub Actions locally)
 - **Databases**: PostgreSQL 15, Redis, pgvector
 - **CLI Tools**: fzf, ripgrep, bat, gh (GitHub CLI), nvm, git
@@ -178,6 +184,10 @@ vim brew/Brewfile.local
 
 # 4. Restart terminal
 exec zsh
+
+# 5. Verify Node.js installation (auto-installed during setup)
+node --version
+npm --version
 ```
 
 ### Regular Maintenance
@@ -996,12 +1006,26 @@ source ~/.zshrc
 **Problem**: NVM not found
 ```bash
 # NVM loads lazily - it should load on first use of: nvm, npm, node, npx, yarn
-# If still not working, check:
-echo $NVM_DIR
-ls -la ~/.nvm/
+# The install script automatically creates ~/.nvm directory
 
-# Manually trigger load
-nvm --version  # Should work after this
+# If still not working, check:
+echo $NVM_DIR              # Should be /Users/username/.nvm
+ls -la ~/.nvm/             # Should exist and have nvm.sh symlink
+
+# Check if NVM is installed via Homebrew
+brew list nvm
+ls -la "$(brew --prefix nvm)/nvm.sh"
+
+# Reload shell configuration
+exec zsh
+
+# Try NVM command (triggers lazy-load)
+nvm --version
+
+# If still having issues, manually source NVM
+export NVM_DIR="$HOME/.nvm"
+source "$(brew --prefix nvm)/nvm.sh"
+nvm --version
 ```
 
 **Problem**: Environment variables not set

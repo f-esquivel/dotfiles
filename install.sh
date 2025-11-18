@@ -206,7 +206,24 @@ install_brew_packages() {
 }
 
 # =============================================================================
-# 3. Setup Zsh Configuration
+# 3. Setup NVM Directory
+# =============================================================================
+
+setup_nvm() {
+    info "Setting up NVM directory..."
+
+    # Create NVM directory if it doesn't exist
+    # This is required by NVM to store Node versions
+    if [ "$DRY_RUN" = false ]; then
+        mkdir -p "$HOME/.nvm"
+        success "NVM directory created at ~/.nvm"
+    else
+        info "[DRY RUN] Would create ~/.nvm directory"
+    fi
+}
+
+# =============================================================================
+# 4. Setup Zsh Configuration
 # =============================================================================
 
 setup_zsh() {
@@ -233,7 +250,7 @@ setup_zsh() {
 }
 
 # =============================================================================
-# 4. Setup SSH Configuration
+# 5. Setup SSH Configuration
 # =============================================================================
 
 setup_ssh() {
@@ -266,7 +283,7 @@ setup_ssh() {
 }
 
 # =============================================================================
-# 5. Setup Git Configuration
+# 6. Setup Git Configuration
 # =============================================================================
 
 setup_git() {
@@ -281,7 +298,7 @@ setup_git() {
 }
 
 # =============================================================================
-# 6. Setup Utility Files
+# 7. Setup Utility Files
 # =============================================================================
 
 setup_utils() {
@@ -303,7 +320,7 @@ setup_utils() {
 }
 
 # =============================================================================
-# 7. Setup Ghostty Terminal
+# 8. Setup Ghostty Terminal
 # =============================================================================
 
 setup_ghostty() {
@@ -328,7 +345,7 @@ setup_ghostty() {
 }
 
 # =============================================================================
-# 8. Setup JetBrains Toolbox
+# 9. Setup JetBrains Toolbox
 # =============================================================================
 
 setup_jetbrains() {
@@ -377,7 +394,7 @@ setup_jetbrains() {
 }
 
 # =============================================================================
-# 9. Install Zim (Zsh Plugin Manager)
+# 10. Install Zim (Zsh Plugin Manager)
 # =============================================================================
 
 install_zim() {
@@ -405,6 +422,51 @@ install_zim() {
             ZIM_HOME="${HOME}/.zim" zsh -c "source \${ZIM_HOME}/zimfw.zsh install"
             success "Zim modules installed"
         fi
+    fi
+}
+
+# =============================================================================
+# 11. Install Node.js LTS via NVM
+# =============================================================================
+
+install_node_lts() {
+    info "Installing Node.js LTS version..."
+
+    if [ "$DRY_RUN" = true ]; then
+        info "[DRY RUN] Would install Node.js LTS via NVM"
+        return 0
+    fi
+
+    # Load NVM in a subshell to install Node
+    export NVM_DIR="$HOME/.nvm"
+
+    # Source NVM
+    local nvm_sh=""
+    if command -v brew &> /dev/null && [ -s "$(brew --prefix nvm)/nvm.sh" ]; then
+        nvm_sh="$(brew --prefix nvm)/nvm.sh"
+    elif [ -s "$NVM_DIR/nvm.sh" ]; then
+        nvm_sh="$NVM_DIR/nvm.sh"
+    else
+        warn "NVM not found, skipping Node.js installation"
+        warn "You can install Node.js later with: nvm install --lts"
+        return 0
+    fi
+
+    # Load NVM and install LTS in current shell
+    source "$nvm_sh"
+
+    # Check if any Node version is already installed
+    if nvm ls | grep -q "N/A"; then
+        info "Installing Node.js LTS..."
+        nvm install --lts
+        nvm use --lts
+        success "Node.js LTS installed"
+        info "Node version: $(node --version)"
+        info "NPM version: $(npm --version)"
+    else
+        success "Node.js is already installed"
+        info "Current version: $(nvm current 2>/dev/null || echo 'N/A')"
+        info "To install LTS: nvm install --lts"
     fi
 }
 
@@ -440,6 +502,9 @@ main() {
     install_brew_packages
     echo ""
 
+    setup_nvm
+    echo ""
+
     setup_zsh
     echo ""
 
@@ -459,6 +524,9 @@ main() {
     echo ""
 
     install_zim
+    echo ""
+
+    install_node_lts
     echo ""
 
     # Optional: Import game configs
@@ -496,12 +564,13 @@ main() {
     info "Next steps:"
     echo "  1. Edit \$DOTFILES_DIR/zsh/.zshrc.secrets with your API keys"
     echo "  2. Edit \$DOTFILES_DIR/ssh/config.local with your SSH key paths"
-    echo "  3. Restart your terminal or run: source ~/.zshrc"
+    echo "  3. Restart your terminal or run: exec zsh"
     echo ""
     info "Optional:"
     echo "  - Set Zsh as default shell: chsh -s \$(which zsh)"
     echo "  - Review installed packages: brew list"
-    echo "  - Add this to your shell: export DOTFILES_DIR=\"$DOTFILES_DIR\""
+    echo "  - Check Node version: node --version"
+    echo "  - Install other Node versions: nvm install <version>"
     echo ""
 }
 

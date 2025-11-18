@@ -62,6 +62,8 @@ export OPENCODE_MODEL="gemini-2.5-pro"
 
 alias rzsh="source $DOTFILES_DIR/zsh/.zshrc.user"
 alias nr="npm run"
+alias cde="cd $HOME/Documents/Dev/Projects/ese/"
+alias cdd="cd $HOME/Documents/Dev/Projects/designli/"
 
 # -----------------------------------------------------------------------------
 # Secrets (API Keys, Tokens)
