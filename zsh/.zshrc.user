@@ -60,11 +60,11 @@ export OPENCODE_MODEL="gemini-2.5-pro"
 # Aliases
 # -----------------------------------------------------------------------------
 
-alias rzsh="source $DOTFILES_DIR/zsh/.zshrc.user"
-alias nr="npm run"
-alias cde="cd $HOME/Documents/Dev/Projects/ese/"
 alias cdd="cd $HOME/Documents/Dev/Projects/designli/"
+alias cde="cd $HOME/Documents/Dev/Projects/ese/"
 alias gcpsql="$DOTFILES_DIR/utils/gcp-sql-proxy.sh"
+alias nr="npm run"
+alias rzsh="source $DOTFILES_DIR/zsh/.zshrc.user"
 
 # -----------------------------------------------------------------------------
 # Secrets (API Keys, Tokens)
