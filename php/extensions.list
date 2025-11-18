@@ -3,6 +3,7 @@
 # =============================================================================
 # This file tracks PECL extensions that should be installed
 # Format: extension_name@version (or just extension_name for latest)
+# Inline comments are supported (everything after # is ignored)
 #
 # Usage:
 #   Install all: ~/dotfiles/scripts/php-extensions.sh install
@@ -11,11 +12,11 @@
 
 # Common Extensions (uncomment as needed)
 redis                    # Redis client
-imagick                  # ImageMagick for PHP
+imagick                  # ImageMagick for PHP (requires: brew install imagemagick)
 xdebug                   # Debugger and profiler
 # apcu                     # APCu caching
-# mongodb                  # MongoDB driver
-# memcached                # Memcached client
+# mongodb                  # MongoDB driver (requires: brew install mongodb-community)
+# memcached                # Memcached client (requires: brew install memcached)
 # swoole                   # Async programming framework
 
 # Add your extensions below:

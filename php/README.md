@@ -164,6 +164,12 @@ vim ~/dotfiles/php/extensions.list
 # imagick
 # xdebug@3.2.0  # Can specify version
 
+# Install system dependencies first (if needed)
+# Some extensions require system libraries:
+# - imagick requires: brew install imagemagick
+# - memcached requires: brew install memcached
+# - mongodb requires: brew install mongodb-community
+
 # Install all extensions from list
 ~/dotfiles/scripts/php-extensions.sh install
 

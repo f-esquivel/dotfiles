@@ -48,6 +48,7 @@ brew "redis", restart_service: :changed         # In-memory data store
 # -----------------------------------------------------------------------------
 
 brew "composer"                            # PHP dependency manager
+brew "imagemagick"                         # Image manipulation library (required for imagick PHP extension)
 brew "php@8.2", restart_service: :changed, link: true
 brew "pkgconf"                             # Package compiler helper
 brew "zlib"                                # Compression library
