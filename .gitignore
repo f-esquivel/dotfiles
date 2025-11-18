@@ -8,6 +8,10 @@ ssh/config.local
 brew/Brewfile.local
 jetbrains/.settings.json
 
+# Git context-specific configurations (per-directory identities)
+git/.gitconfig.*
+!git/.gitconfig.*.template
+
 # Secrets and credentials
 *secret*
 !*.secrets.template

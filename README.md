@@ -36,7 +36,7 @@ Options:
 ### Configurations
 
 - **Zsh** - Shell configuration with Zim plugin manager
-- **Git** - Git aliases and settings
+- **Git** - Git aliases, settings, and directory-based identities
 - **SSH** - SSH host configurations
 - **Ghostty** - Terminal emulator config
 - **Homebrew** - Package management via Brewfile
@@ -46,11 +46,14 @@ Options:
 ```
 dotfiles/
 ├── install.sh              # Main installation script
-├── .gitconfig              # Git configuration
 ├── .gitignore              # Files to ignore in git
 ├── brew/
 │   ├── Brewfile            # Homebrew packages
 │   └── Brewfile.local.template # Template for machine-specific packages
+├── git/
+│   ├── .gitconfig          # Git configuration
+│   ├── .gitconfig.context.template # Template for new Git contexts
+│   └── README.md           # Git setup documentation
 ├── zsh/
 │   ├── .zshrc              # Main Zsh config
 │   ├── .zshrc.user         # User-specific settings
@@ -125,7 +128,17 @@ vim ~/dotfiles/ssh/config.local
 
 ```bash
 # Symlink git config
-ln -sf ~/dotfiles/.gitconfig ~/.gitconfig
+ln -sf ~/dotfiles/git/.gitconfig ~/.gitconfig
+
+# (Optional) Set up directory-based Git identities
+# Create a context for work projects
+cp ~/dotfiles/git/.gitconfig.context.template ~/dotfiles/git/.gitconfig.work
+vim ~/dotfiles/git/.gitconfig.work
+
+# Add the conditional include to main .gitconfig
+# Uncomment and modify one of the examples in the Conditional Includes section
+
+# See git/README.md for full documentation on Git contexts
 ```
 
 ### 5. Ghostty Terminal
@@ -150,7 +163,8 @@ ln -sf ~/dotfiles/ghostty/config ~/.config/ghostty/config
 
 - `zsh/.zshrc.secrets` - API keys and tokens
 - `ssh/config.local` - SSH key paths
-- `Brewfile.local` - Machine-specific packages
+- `brew/Brewfile.local` - Machine-specific packages
+- `git/.gitconfig.*` - Git context configurations (work/client emails)
 - `*.local` files
 
 ## Customization
@@ -182,15 +196,46 @@ alias myalias="command"
 1. Edit `~/dotfiles/ssh/config` for the host configuration
 2. Edit `~/dotfiles/ssh/config.local` for the IdentityFile path
 
+### Configuring Git Contexts (Directory-Based Identities)
+
+Use different Git identities (name, email, signing keys) for different project directories:
+
+```bash
+# 1. Create a new context for work projects
+cp ~/dotfiles/git/.gitconfig.context.template ~/dotfiles/git/.gitconfig.work
+vim ~/dotfiles/git/.gitconfig.work
+# Set your work name and email
+
+# 2. Add the conditional include to main .gitconfig
+vim ~/dotfiles/git/.gitconfig
+# Uncomment and modify one of the examples:
+# [includeIf "gitdir:~/Documents/Dev/work/"]
+#     path = ~/.dotfiles/git/.gitconfig.work
+
+# 3. Create additional contexts as needed
+cp ~/dotfiles/git/.gitconfig.context.template ~/dotfiles/git/.gitconfig.client
+vim ~/dotfiles/git/.gitconfig.client
+
+# 4. Test it works
+cd ~/Documents/Dev/work/some-project
+git config user.email  # Should show your work email
+
+cd ~/Documents/random-project
+git config user.email  # Should show your default email
+```
+
+**See `git/README.md` for comprehensive documentation on Git contexts.**
+
 ## Setting Up on a New Machine
 
 1. Clone the dotfiles repository
 2. Preview changes: `./install.sh --dry-run`
 3. Run installation: `./install.sh` (or `./install.sh --interactive` for confirmations)
-4. Edit `.zshrc.secrets` with your API keys
+4. Edit `zsh/.zshrc.secrets` with your API keys
 5. Edit `ssh/config.local` with your SSH key paths
-6. (Optional) Create `Brewfile.local` for machine-specific packages
-7. Restart your terminal
+6. (Optional) Create Git context configs for work/client projects (see `git/README.md`)
+7. (Optional) Create `brew/Brewfile.local` for machine-specific packages
+8. Restart your terminal
 
 ## Safety Features
 

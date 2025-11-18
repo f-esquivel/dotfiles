@@ -1,0 +1,37 @@
+# Git Context Configuration Template
+#
+# This template is used to create context-specific Git configurations
+# for different directories (e.g., work projects, client projects, etc.)
+#
+# USAGE:
+# 1. Copy this file to .gitconfig.[context-name]
+#    Example: cp .gitconfig.context.template .gitconfig.work
+#
+# 2. Edit the copied file with your context-specific identity
+#
+# 3. Add a conditional include in your main .gitconfig:
+#    [includeIf "gitdir:~/path/to/projects/"]
+#        path = ~/.dotfiles/git/.gitconfig.work
+#
+# 4. The .gitconfig.[context-name] files are git-ignored by default
+#    (they may contain sensitive work/client information)
+
+[user]
+	# Your name for this context
+	name = Your Name
+
+	# Your email for this context (e.g., work email, client email)
+	email = your.email@example.com
+
+# Optional: GPG signing configuration
+# Uncomment and configure if you use commit signing for this context
+# [user]
+#	signingkey = YOUR_GPG_KEY_ID
+#
+# [commit]
+#	gpgsign = true
+
+# Optional: Context-specific aliases
+# You can override or add aliases specific to this context
+# [alias]
+#	custom-alias = "!echo 'Context-specific alias'"

@@ -1,6 +1,6 @@
 [init]
 	defaultBranch = main
-	
+
 [user]
 	name = Franklin Esquivel
 	email = franklin.esquivel@outlook.com
@@ -32,3 +32,45 @@
 
 	# Show the user email for the current repository.
 	whoami = config user.email
+
+[core]
+	autocrlf = input
+
+# =============================================================================
+# Conditional Includes - Directory-Based Git Identities
+# =============================================================================
+# These allow you to use different Git identities (name, email, signing keys)
+# based on the directory where your repository is located.
+#
+# HOW IT WORKS:
+# - When you run Git commands in a directory matching the "gitdir:" pattern,
+#   Git will include the specified config file, overriding settings above.
+# - Patterns ending with "/" match all subdirectories recursively
+#
+# USAGE:
+# 1. Create a context config: cp git/.gitconfig.context.template git/.gitconfig.work
+# 2. Edit it with your work email/name
+# 3. Uncomment or add an includeIf directive below
+#
+# EXAMPLES:
+# Work projects (uncomment and configure as needed):
+# [includeIf "gitdir:~/Documents/Dev/work/"]
+#	path = ~/.dotfiles/git/.gitconfig.work
+#
+# Client projects:
+# [includeIf "gitdir:~/Documents/Dev/client-name/"]
+#	path = ~/.dotfiles/git/.gitconfig.client
+#
+# Personal projects:
+# [includeIf "gitdir:~/Documents/Dev/personal/"]
+#	path = ~/.dotfiles/git/.gitconfig.personal
+#
+# Open source contributions:
+# [includeIf "gitdir:~/Documents/Dev/open-source/"]
+#	path = ~/.dotfiles/git/.gitconfig.opensource
+
+[includeIf "gitdir:~/Documents/Dev/Projects/ese/"]
+	path = ~/.dotfiles/git/.gitconfig.ese
+
+[includeIf "gitdir:~/Documents/Dev/Projects/designli/"]
+	path = ~/.dotfiles/git/.gitconfig.designli

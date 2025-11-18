@@ -56,7 +56,9 @@ dotfiles/
 │   └── README.md                    # SSH setup documentation
 │
 ├── git/                             # Git configuration
-│   └── .gitconfig                   # Git aliases and user settings
+│   ├── .gitconfig                   # Git aliases, settings, conditional includes
+│   ├── .gitconfig.context.template  # Template for creating Git contexts
+│   └── README.md                    # Git setup and context documentation
 │
 ├── ghostty/                         # Ghostty terminal emulator config
 │   └── config                       # Theme and font configuration
@@ -112,7 +114,8 @@ dotfiles/
 │  │   └─► ssh/config.local (IdentityFiles - git-ignored)│
 │  │                                                       │
 │  ├─► Git Configuration                                  │
-│  │   └─► .gitconfig (aliases + user info)              │
+│  │   ├─► .gitconfig (aliases, settings, includes)      │
+│  │   └─► .gitconfig.* (directory-based identities)     │
 │  │                                                       │
 │  ├─► Terminal Configuration                             │
 │  │   ├─► ghostty/config (theme, fonts)                 │
@@ -283,6 +286,42 @@ git branches # List all branches
 git dm      # Delete merged branches
 git whoami  # Show current user email
 ```
+
+### Git Context Configuration (Directory-Based Identities)
+
+The repository supports directory-based Git identities using Git's conditional includes feature.
+
+```bash
+# Create a new context (e.g., for work projects)
+cd ~/.dotfiles/git
+cp .gitconfig.context.template .gitconfig.work
+vim .gitconfig.work
+# Update name and email for this context
+
+# Add the conditional include to main .gitconfig
+vim .gitconfig
+# Uncomment and modify one of the examples:
+# [includeIf "gitdir:~/Documents/Dev/work/"]
+#     path = ~/.dotfiles/git/.gitconfig.work
+
+# Test the configuration
+cd ~/Documents/Dev/work/some-project
+git config user.email  # Should show work email
+
+cd ~/Documents/random-project
+git config user.email  # Should show default email
+
+# Create multiple contexts as needed
+cp .gitconfig.context.template .gitconfig.client
+cp .gitconfig.context.template .gitconfig.personal
+cp .gitconfig.context.template .gitconfig.opensource
+```
+
+**Key Points:**
+- Context files (`.gitconfig.*`) are git-ignored to prevent committing work/client information
+- Use the template as a starting point for new contexts
+- Patterns ending with `/` match all subdirectories recursively
+- See `git/README.md` for comprehensive documentation
 
 ### LoL Config Management (Gaming)
 
@@ -562,7 +601,10 @@ Packages organized by category in specific order:
 
 | File | Purpose | Tracked? |
 |------|---------|----------|
-| `git/.gitconfig` | Git aliases and user configuration | Yes |
+| `git/.gitconfig` | Git aliases, user configuration, and conditional includes | Yes |
+| `git/.gitconfig.context.template` | Template for creating new Git contexts | Yes |
+| `git/.gitconfig.*` | Context-specific Git identities (work, client, etc.) | No (git-ignored) |
+| `git/README.md` | Git setup and context documentation | Yes |
 | `README.md` | Main repository documentation | Yes |
 | `.gitignore` | Git ignore patterns (secrets, locals, system files) | Yes |
 
@@ -692,6 +734,39 @@ ssh myhost     # Test connection
 # 6. Commit (only config, not config.local)
 git add ssh/config
 git commit -m "feat(ssh): add myhost configuration"
+```
+
+### Adding a New Git Context
+
+```bash
+# 1. Create context from template
+cd ~/dotfiles/git
+cp .gitconfig.context.template .gitconfig.work
+vim .gitconfig.work
+
+# 2. Set the identity for this context
+[user]
+    name = Your Name
+    email = work@company.com
+
+# 3. Add conditional include to main .gitconfig
+vim ~/dotfiles/git/.gitconfig
+
+# 4. Add or uncomment the includeIf directive
+[includeIf "gitdir:~/Documents/Dev/work/"]
+    path = ~/.dotfiles/git/.gitconfig.work
+
+# 5. Test the configuration
+cd ~/Documents/Dev/work/some-project
+git config user.email  # Should show: work@company.com
+
+cd ~/Documents/other-project
+git config user.email  # Should show: default email
+
+# 6. Commit (only .gitconfig, not context files)
+# Context files are git-ignored to keep sensitive data private
+git add git/.gitconfig
+git commit -m "feat(git): add work directory context"
 ```
 
 ### Setting Up JetBrains Toolbox Shell Scripts
