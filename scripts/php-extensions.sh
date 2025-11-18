@@ -83,7 +83,8 @@ Files:
 
 Notes:
     - Edit extensions.list to add/remove extensions
-    - Lines starting with # are ignored
+    - Lines starting with # are ignored (comments)
+    - Inline comments are supported (e.g., "redis  # Redis client")
     - Format: extension_name or extension_name@version
     - After installing extensions, restart PHP:
       brew services restart php
@@ -91,14 +92,18 @@ Notes:
 EOF
 }
 
-# Read extensions from file (skip comments and empty lines)
+# Read extensions from file (skip comments and empty lines, strip inline comments)
 read_extensions() {
     if [[ ! -f "$EXTENSIONS_FILE" ]]; then
         error "Extensions file not found: $EXTENSIONS_FILE"
         exit 1
     fi
 
-    grep -v '^#' "$EXTENSIONS_FILE" | grep -v '^[[:space:]]*$' || true
+    # Skip lines starting with #, remove inline comments, trim whitespace, skip empty lines
+    grep -v '^[[:space:]]*#' "$EXTENSIONS_FILE" | \
+        sed 's/#.*//' | \
+        sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
+        grep -v '^[[:space:]]*$' || true
 }
 
 # List currently installed PECL extensions
@@ -179,7 +184,9 @@ install_extensions() {
             if pecl list | grep -q "^${extension%%@*}"; then
                 warn "Already installed: ${extension%%@*}"
             else
-                if pecl install "$extension"; then
+                # Redirect stdin from /dev/null to prevent PECL from reading our extension list
+                # This avoids PECL using next extensions as answers to interactive prompts
+                if pecl install "$extension" </dev/null; then
                     success "Installed: $extension"
                 else
                     error "Failed to install: $extension"
@@ -215,8 +222,8 @@ reinstall_extensions() {
             # Uninstall if exists (ignore errors)
             pecl uninstall "${extension%%@*}" 2>/dev/null || true
 
-            # Install
-            if pecl install "$extension"; then
+            # Install - redirect stdin from /dev/null to prevent interactive prompts
+            if pecl install "$extension" </dev/null; then
                 success "Reinstalled: $extension"
             else
                 error "Failed to reinstall: $extension"
