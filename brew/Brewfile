@@ -58,6 +58,7 @@ brew "zlib"                                # Compression library
 # -----------------------------------------------------------------------------
 
 brew "oven-sh/bun/bun"  # Fast JavaScript runtime
+brew "yarn"             # JavaScript package manager
 
 # -----------------------------------------------------------------------------
 # GUI Applications (Casks)
