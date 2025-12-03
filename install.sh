@@ -372,7 +372,44 @@ setup_ghostty() {
 }
 
 # =============================================================================
-# 10. Setup JetBrains Toolbox
+# 10. Setup Claude Code
+# =============================================================================
+
+setup_claude_code() {
+    info "Setting up Claude Code configuration..."
+
+    # Create ~/.claude directory if it doesn't exist
+    # Note: Don't symlink the entire directory - it contains runtime data
+    if [ "$DRY_RUN" = false ]; then
+        mkdir -p "$HOME/.claude"
+    else
+        info "[DRY RUN] Would create ~/.claude directory"
+    fi
+
+    # Symlink global settings.json
+    if [ -f "$DOTFILES_DIR/claude/settings.json" ]; then
+        safe_symlink "$DOTFILES_DIR/claude/settings.json" "$HOME/.claude/settings.json" "Claude Code settings"
+    else
+        warn "Claude Code settings.json not found, skipping"
+    fi
+
+    # Symlink global CLAUDE.md
+    if [ -f "$DOTFILES_DIR/claude/CLAUDE.md" ]; then
+        safe_symlink "$DOTFILES_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md" "Claude Code global instructions"
+    fi
+
+    # Symlink global commands directory
+    if [ -d "$DOTFILES_DIR/claude/commands" ]; then
+        safe_symlink "$DOTFILES_DIR/claude/commands" "$HOME/.claude/commands" "Claude Code global commands"
+    fi
+
+    if [ "$DRY_RUN" = false ]; then
+        success "Claude Code configuration linked"
+    fi
+}
+
+# =============================================================================
+# 11. Setup JetBrains Toolbox
 # =============================================================================
 
 setup_jetbrains() {
@@ -421,7 +458,7 @@ setup_jetbrains() {
 }
 
 # =============================================================================
-# 11. Install Zim (Zsh Plugin Manager)
+# 12. Install Zim (Zsh Plugin Manager)
 # =============================================================================
 
 install_zim() {
@@ -453,7 +490,7 @@ install_zim() {
 }
 
 # =============================================================================
-# 12. Install Node.js LTS via NVM
+# 13. Install Node.js LTS via NVM
 # =============================================================================
 
 install_node_lts() {
@@ -526,8 +563,8 @@ main() {
     install_homebrew
     echo ""
 
-    install_brew_packages
-    echo ""
+    #install_brew_packages
+    #echo ""
 
     setup_nvm
     echo ""
@@ -541,13 +578,16 @@ main() {
     setup_git
     echo ""
 
-    setup_php
-    echo ""
+    #setup_php
+    #echo ""
 
     setup_utils
     echo ""
 
     setup_ghostty
+    echo ""
+
+    setup_claude_code
     echo ""
 
     setup_jetbrains

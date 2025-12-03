@@ -10,6 +10,9 @@ jetbrains/.settings.json
 php/conf.d/*.local
 php/extensions.list.backup*
 
+# Claude Code - project-local settings (global configs are in claude/)
+.claude/settings.local.json
+
 # Git context-specific configurations (per-directory identities)
 git/.gitconfig.*
 !git/.gitconfig.*.template

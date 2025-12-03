@@ -1,0 +1,9 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bunx ccusage statusline",
+    "padding": 4
+  },
+  "includeCoAuthoredBy": false,
+  "gitAttribution": false
+}
