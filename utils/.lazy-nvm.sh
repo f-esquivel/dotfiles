@@ -3,8 +3,11 @@ NVM_LAZY_COMMANDS=(nvm npm node npx nest lerna yarn)
 
 function lazy_nvm {
   # Unset all wrapper functions (only if they exist)
+  # NOTE: We hardcode the list here instead of using NVM_LAZY_COMMANDS because
+  # shell environment snapshots (like Claude Code uses) may not capture the array,
+  # which would cause the unset loop to do nothing and result in infinite recursion.
   local cmd
-  for cmd in "${NVM_LAZY_COMMANDS[@]}"; do
+  for cmd in nvm npm node npx nest lerna yarn; do
     if typeset -f "$cmd" > /dev/null; then
       unset -f "$cmd"
     fi
