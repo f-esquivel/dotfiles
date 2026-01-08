@@ -13,3 +13,5 @@ macos-titlebar-style=tabs
 
 font-size = 16
 keybind = shift+enter=text:\x1b\r
+
+# background-blur = macos-glass-regular
