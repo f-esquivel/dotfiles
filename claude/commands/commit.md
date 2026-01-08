@@ -54,6 +54,25 @@ If any answer is "no" → split the commit.
 
 ## Instructions
 
+### Step 0: Load Project Conventions (Silent)
+
+Before proceeding, silently load project-specific rules (do NOT ask user):
+
+1. **Commitlint config** (enforced rules):
+   - `commitlint.config.js`, `.commitlintrc.js`, `.commitlintrc.json`
+   - Extract: allowed types, scope rules, length constraints
+
+2. **Project docs** (conventions):
+   - `docs/WORKFLOWS.md` → "Git Commit" or "Commit Guidelines" section
+   - `CONTRIBUTING.md` → commit conventions
+   - `CLAUDE.md` → git conventions
+
+3. **Apply project rules over defaults:**
+   - Project types → override default types
+   - Project scopes → override scope detection
+   - Project constraints → override default constraints
+   - No project rules found → use defaults below
+
 ### Step 1: Stage Files
 
 1. Run `git status --porcelain` and `git diff --cached --name-only`
