@@ -347,7 +347,31 @@ setup_utils() {
 }
 
 # =============================================================================
-# 9. Setup Ghostty Terminal
+# 9. Setup Husky (Git Hooks)
+# =============================================================================
+
+setup_husky() {
+    info "Setting up Husky configuration..."
+
+    # Create ~/.config/husky directory if it doesn't exist
+    if [ "$DRY_RUN" = false ]; then
+        mkdir -p "$HOME/.config/husky"
+    else
+        echo "[DRY RUN] Would create: $HOME/.config/husky"
+    fi
+
+    # Symlink init.sh for NVM loading in git hooks
+    if [ -f "$DOTFILES_DIR/husky/init.sh" ]; then
+        safe_symlink "$DOTFILES_DIR/husky/init.sh" "$HOME/.config/husky/init.sh" "husky/init.sh"
+    fi
+
+    if [ "$DRY_RUN" = false ]; then
+        success "Husky configured"
+    fi
+}
+
+# =============================================================================
+# 10. Setup Ghostty Terminal
 # =============================================================================
 
 setup_ghostty() {
@@ -372,7 +396,7 @@ setup_ghostty() {
 }
 
 # =============================================================================
-# 10. Setup Claude Code
+# 11. Setup Claude Code
 # =============================================================================
 
 setup_claude_code() {
@@ -409,7 +433,7 @@ setup_claude_code() {
 }
 
 # =============================================================================
-# 11. Setup JetBrains Toolbox
+# 12. Setup JetBrains Toolbox
 # =============================================================================
 
 setup_jetbrains() {
@@ -582,6 +606,9 @@ main() {
     #echo ""
 
     setup_utils
+    echo ""
+
+    setup_husky
     echo ""
 
     setup_ghostty
