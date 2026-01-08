@@ -93,9 +93,9 @@ Before proceeding, silently load project-specific rules (do NOT ask user):
    - **Type:** Infer from change nature (see Types)
    - **Scope:** Infer from file paths (see Scope Detection)
    - **Description:** Concise, imperative mood, max 75 chars
-   - **Breaking:** Add `!` after scope if breaking change
+   - **Breaking:** Add exclamation mark after scope for breaking changes
 3. **Body decision:** Auto-include body ONLY when:
-   - Breaking changes (with `BREAKING CHANGE:` footer)
+   - Breaking changes (include BREAKING CHANGE footer)
    - Database migrations
    - Performance changes (include before/after metrics if available)
    - Security fixes
