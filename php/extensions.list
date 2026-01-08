@@ -11,10 +11,11 @@
 # =============================================================================
 
 # Common Extensions (uncomment as needed)
-redis                    # Redis client
-imagick                  # ImageMagick for PHP (requires: brew install imagemagick)
-xdebug                   # Debugger and profiler
+redis                      # Redis client
+imagick                    # ImageMagick for PHP (requires: brew install imagemagick)
+xdebug                     # Debugger and profiler
 # apcu                     # APCu caching
+ffmpeg                     # FFmpeg bindings (requires: brew install ffmpeg)
 # mongodb                  # MongoDB driver (requires: brew install mongodb-community)
 # memcached                # Memcached client (requires: brew install memcached)
 # swoole                   # Async programming framework
