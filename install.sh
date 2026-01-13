@@ -427,6 +427,11 @@ setup_claude_code() {
         safe_symlink "$DOTFILES_DIR/claude/commands" "$HOME/.claude/commands" "Claude Code global commands"
     fi
 
+    # Symlink statusline script
+    if [ -f "$DOTFILES_DIR/claude/statusline.sh" ]; then
+        safe_symlink "$DOTFILES_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh" "Claude Code statusline"
+    fi
+
     if [ "$DRY_RUN" = false ]; then
         success "Claude Code configuration linked"
     fi

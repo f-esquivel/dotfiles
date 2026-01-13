@@ -1,12 +1,12 @@
 {
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0
+  },
   "cleanupPeriodDays": 5,
   "includeCoAuthoredBy": false,
   "model": "opus",
-  "statusLine": {
-    "type": "command",
-    "command": "bunx ccusage statusline",
-    "padding": 4
-  },
   "alwaysThinkingEnabled": true,
   "gitAttribution": false,
   "permissions": {
