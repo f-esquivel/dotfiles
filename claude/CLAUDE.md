@@ -22,3 +22,24 @@ Detect platform via: `git remote get-url origin`
 - Issues: `gh issue list`, `gh issue view <id>`, `gh issue create`
 - Actions: `gh run list`, `gh run view`
 - Repo: `gh repo view`
+
+## Spec Files
+
+Spec files (`specs/` directory) are **internal-use only** — they exist to improve DX, never leave the local machine.
+
+* **NEVER** commit spec files or add them to `.gitignore` (use `.git/info/exclude` instead)
+* **NEVER** reference spec files in issues, MRs, PRs, or any external documentation
+* When creating a `specs/` directory in a project for the first time, automatically add `specs/` to `.git/info/exclude`
+* Spec content can inform issues and MRs, but the spec file itself must not be linked, attached, or mentioned
+
+## Workflow Rules
+
+* When asked for a spec, plan, or design document — produce ONLY the document. Do NOT implement code or enter plan mode unless explicitly told to proceed
+* Before proposing new patterns, configs, or test utilities — explore existing project conventions first (check .env files, base classes, established patterns)
+* When unsure about commit scope or conventions — ask before committing
+* Follow SRP for both code and commits — split by concern, don't merge unrelated changes
+
+## GitLab/GitHub Workflow
+
+* Before creating MRs/PRs via CLI — always show a draft preview of title, description, and labels for approval first
+* Before executing any destructive or state-changing CLI command (close issue, merge MR, apply labels) — show the exact command and explain what it does
