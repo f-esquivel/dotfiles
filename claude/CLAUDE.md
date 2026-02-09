@@ -32,6 +32,10 @@ Spec files (`specs/` directory) are **internal-use only** — they exist to impr
 * When creating a `specs/` directory in a project for the first time, automatically add `specs/` to `.git/info/exclude`
 * Spec content can inform issues and MRs, but the spec file itself must not be linked, attached, or mentioned
 
+## Git Rules
+
+* `git push` is **blocked** globally — never attempt to push. The user will push manually when ready
+
 ## Workflow Rules
 
 * When asked for a spec, plan, or design document — produce ONLY the document. Do NOT implement code or enter plan mode unless explicitly told to proceed
