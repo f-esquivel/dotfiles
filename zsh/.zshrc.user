@@ -71,6 +71,7 @@ alias pcc="php artisan config:cache"
 alias phpext="$DOTFILES_DIR/scripts/php-extensions.sh"
 alias phpsetup="$DOTFILES_DIR/scripts/php-setup.sh"
 alias rzsh="source $DOTFILES_DIR/zsh/.zshrc.user"
+alias kc-redirect-uri="$DOTFILES_DIR/scripts/kc-redirect-uri.sh"
 
 # -----------------------------------------------------------------------------
 # Secrets (API Keys, Tokens)
