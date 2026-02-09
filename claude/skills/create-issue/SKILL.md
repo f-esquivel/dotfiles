@@ -16,8 +16,11 @@ $ARGUMENTS
 ### Step 0: Detect Platform
 
 Detect git platform via `git remote get-url origin`:
-- Contains `gitlab` → use `glab` CLI → write issue in **Latin American Spanish**
-- Contains `github` → use `gh` CLI → write issue in **English**
+- Contains `gitlab` → write issue in **Latin American Spanish**
+- Contains `github` → write issue in **English**
+
+For GitLab: prefer MCP tools (`mcp__gitlab__*`) when available, fall back to `glab` CLI if not.
+For GitHub: use `gh` CLI.
 
 ### Step 1: Understand the Requirement
 
