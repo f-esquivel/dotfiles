@@ -76,6 +76,11 @@ Each package has an inline comment explaining what it does.
 - `claude/hooks/` - Hook scripts (commit validation)
 - `claude/statusline.sh` - Custom status bar
 
+**MCP servers** (registered via `claude mcp add`, stored in `~/.claude.json`):
+- MCP servers live in `~/.claude.json` which contains runtime state — cannot be symlinked
+- `install.sh` registers MCP servers via `claude mcp add --scope user` during setup
+- To add new MCP servers to dotfiles, add `claude mcp add` commands to `setup_claude_code()` in `install.sh`
+
 **Project-local configs** (NOT symlinked):
 - `.claude/settings.local.json` - Project permissions
 - `.claude/commands/` - Project-specific commands

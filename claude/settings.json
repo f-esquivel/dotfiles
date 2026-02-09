@@ -23,13 +23,6 @@
   },
   "alwaysThinkingEnabled": true,
   "gitAttribution": false,
-  "mcpServers": {
-    "gitlab": {
-      "type": "stdio",
-      "command": "glab",
-      "args": ["mcp", "serve"]
-    }
-  },
   "hooks": {
     "PreToolUse": [
       {

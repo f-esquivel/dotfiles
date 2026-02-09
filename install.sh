@@ -442,6 +442,25 @@ setup_claude_code() {
         safe_symlink "$DOTFILES_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh" "Claude Code statusline"
     fi
 
+    # Register MCP servers (stored in ~/.claude.json, not symlinkable)
+    if command -v claude &> /dev/null; then
+        if command -v glab &> /dev/null; then
+            local glab_path
+            glab_path="$(command -v glab)"
+            if [ "$DRY_RUN" = true ]; then
+                info "[DRY RUN] Would register GitLab MCP server (glab mcp serve)"
+            else
+                claude mcp add --scope user --transport stdio gitlab -- "$glab_path" mcp serve 2>/dev/null && \
+                    success "GitLab MCP server registered" || \
+                    warn "GitLab MCP server registration failed (may already exist)"
+            fi
+        else
+            warn "glab not installed, skipping GitLab MCP server"
+        fi
+    else
+        warn "Claude Code CLI not installed, skipping MCP server registration"
+    fi
+
     if [ "$DRY_RUN" = false ]; then
         success "Claude Code configuration linked"
     fi
