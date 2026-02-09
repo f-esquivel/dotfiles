@@ -69,9 +69,12 @@ Each package has an inline comment explaining what it does.
 ## Claude Code Setup
 
 **Global configs** (symlinked to `~/.claude/`):
-- `claude/settings.json` - Global settings
-- `claude/CLAUDE.md` - Global instructions
-- `claude/commands/` - Global slash commands
+- `claude/settings.json` - Global settings (permissions, hooks, model, plugins)
+- `claude/CLAUDE.md` - Global instructions (workflow rules, git platform detection)
+- `claude/commands/` - Global slash commands (`/commit`)
+- `claude/skills/` - Global skills (`/spec`, `/review-mr`)
+- `claude/hooks/` - Hook scripts (commit validation)
+- `claude/statusline.sh` - Custom status bar
 
 **Project-local configs** (NOT symlinked):
 - `.claude/settings.local.json` - Project permissions
@@ -87,14 +90,14 @@ Each package has an inline comment explaining what it does.
 
 ## Key Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `install.sh` | Bootstrap entire system |
-| `scripts/update.sh` | Update all components |
-| `scripts/php-setup.sh` | Symlink PHP config |
-| `scripts/php-extensions.sh` | Manage PECL extensions |
-| `scripts/lol-export.sh` | Export LoL settings |
-| `scripts/lol-import.sh` | Import LoL settings |
+| Script                      | Purpose                 |
+|-----------------------------|-------------------------|
+| `install.sh`                | Bootstrap entire system |
+| `scripts/update.sh`         | Update all components   |
+| `scripts/php-setup.sh`      | Symlink PHP config      |
+| `scripts/php-extensions.sh` | Manage PECL extensions  |
+| `scripts/lol-export.sh`     | Export LoL settings     |
+| `scripts/lol-import.sh`     | Import LoL settings     |
 
 ## Shell Configuration
 
