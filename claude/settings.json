@@ -1,20 +1,26 @@
 {
+  "cleanupPeriodDays": 30,
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true"
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "deny": [
+      "Bash(git push:*)"
+    ],
+    "ask": [
+      "Bash(git commit:*)"
+    ]
+  },
+  "model": "opus",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
     "padding": 0
   },
-  "cleanupPeriodDays": 5,
-  "includeCoAuthoredBy": false,
-  "model": "opus",
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  },
   "alwaysThinkingEnabled": true,
-  "gitAttribution": false,
-  "permissions": {
-    "ask": [
-      "Bash(git commit:*)"
-    ],
-    "deny": [
-      "Bash(git push:*)"
-    ]
-  }
+  "gitAttribution": false
 }
