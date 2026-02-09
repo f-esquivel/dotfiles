@@ -1,3 +1,12 @@
+---
+name: commit
+description: Interactive Git commit with auto-generated conventional commit messages and SRP enforcement.
+disable-model-invocation: true
+user-invocable: true
+allowed-tools: Read, Grep, Glob, Bash(git *)
+argument-hint: [file filter - path, filename, pattern, or partial match]
+---
+
 # Interactive Git Commit
 
 Streamlined commit workflow with auto-generated conventional commit messages.
@@ -35,7 +44,7 @@ Cross-scope commits allowed when ALL changes serve a **single unified purpose**:
 - Shared component change requiring consumer updates
 
 ```bash
-# ✅ Valid cross-scope
+# Valid cross-scope
 style(lint): apply object-shorthand rule across codebase
 refactor(ui): rename Button onClick signature and update consumers
 deps(deps): upgrade react-router to v7 with migration fixes
