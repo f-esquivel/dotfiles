@@ -427,6 +427,16 @@ setup_claude_code() {
         safe_symlink "$DOTFILES_DIR/claude/commands" "$HOME/.claude/commands" "Claude Code global commands"
     fi
 
+    # Symlink global skills directory
+    if [ -d "$DOTFILES_DIR/claude/skills" ]; then
+        safe_symlink "$DOTFILES_DIR/claude/skills" "$HOME/.claude/skills" "Claude Code global skills"
+    fi
+
+    # Symlink hooks directory
+    if [ -d "$DOTFILES_DIR/claude/hooks" ]; then
+        safe_symlink "$DOTFILES_DIR/claude/hooks" "$HOME/.claude/hooks" "Claude Code hooks"
+    fi
+
     # Symlink statusline script
     if [ -f "$DOTFILES_DIR/claude/statusline.sh" ]; then
         safe_symlink "$DOTFILES_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh" "Claude Code statusline"
