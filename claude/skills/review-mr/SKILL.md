@@ -108,7 +108,7 @@ After presenting the structured review, draft inline comments using the format b
 
 #### Comment Format
 
-Each comment uses: `{severity emoji} {label}: {message}`
+Each comment uses: `{emoji} **{label}**: {message}` or `{emoji} **{label}** (blocking/non-blocking): {message}`
 
 **Severity** (visual urgency):
 
@@ -122,17 +122,17 @@ Each comment uses: `{severity emoji} {label}: {message}`
 
 **Labels** (intent — what response is expected):
 
-| Label         | Typical severity | Purpose                                    |
-|---------------|------------------|--------------------------------------------|
-| `issue:`      | 🔴 🟠            | Concrete problem that needs fixing         |
-| `suggestion:` | 🟠 🔵            | Improvement proposal — code or verbal      |
-| `nitpick:`    | 🔵               | Trivial fix, non-blocking by default       |
-| `chore:`      | 🔵               | Cleanup, maintenance, dead code            |
-| `question:`   | ⚪                | Asks for clarification, no assumption      |
-| `thought:`    | ⚪                | Opens discussion, explicitly non-directive |
-| `praise:`     | 💚               | Highlights something done well             |
+| Label            | Typical severity | Purpose                                    |
+|------------------|------------------|--------------------------------------------|
+| **`issue`**      | 🔴 🟠            | Concrete problem that needs fixing         |
+| **`suggestion`** | 🟠 🔵            | Improvement proposal — code or verbal      |
+| **`nitpick`**    | 🔵               | Trivial fix, non-blocking by default       |
+| **`chore`**      | 🔵               | Cleanup, maintenance, dead code            |
+| **`question`**   | ⚪                | Asks for clarification, no assumption      |
+| **`thought`**    | ⚪                | Opens discussion, explicitly non-directive |
+| **`praise`**     | 💚               | Highlights something done well             |
 
-Append `(blocking)` or `(non-blocking)` when the default isn't obvious.
+Append `(blocking)` or `(non-blocking)` after the label when the default isn't obvious.
 
 #### Comment structure
 
@@ -144,29 +144,29 @@ Each comment must specify:
 #### Examples
 
 ````
-🔴 issue: This endpoint has no auth middleware — any unauthenticated
+🔴 **issue**: This endpoint has no auth middleware — any unauthenticated
    user can delete records.
 
-🟠 issue: Off-by-one error — the loop skips the last element.
+🟠 **issue**: Off-by-one error — the loop skips the last element.
    ```suggestion:-0+0
    for ($i = 0; $i <= count($items) - 1; $i++) {
    ```
 
-🟠 suggestion: Extract this into a scope to avoid the N+1.
+🟠 **suggestion**: Extract this into a scope to avoid the N+1.
 
-🔵 nitpick: Trailing comma missing.
+🔵 **nitpick**: Trailing comma missing.
    ```suggestion:-0+0
        'cache_ttl' => 3600,
    ```
 
-🔵 chore: This TODO references a closed ticket — safe to remove.
+🔵 **chore** (non-blocking): This TODO references a closed ticket — safe to remove.
 
-⚪ question: Is the fallback to en_US intentional, or should it
+⚪ **question**: Is the fallback to en_US intentional, or should it
    respect the user's locale?
 
-⚪ thought: This service might benefit from being split in a follow-up.
+⚪ **thought**: This service might benefit from being split in a follow-up.
 
-💚 praise: Clean separation of concerns here.
+💚 **praise**: Clean separation of concerns here.
 ````
 
 Present all drafted comments to the user for approval before posting.
@@ -184,7 +184,7 @@ Comments are split into two channels based on intent:
 
 Extract the token from glab's auth status:
 ```bash
-glab auth status -t 2>&1
+glab auth status -t 2>&1 | awk '/Token/{print $NF}'
 ```
 
 #### Why `curl` and not `glab api` CLI
