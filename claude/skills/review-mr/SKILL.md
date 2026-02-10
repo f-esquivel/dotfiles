@@ -62,11 +62,19 @@ If no conventions found → proceed with the built-in defaults below.
 
 #### Primary issue
 
-Extract the main related issue from the MR/PR:
-- Check MR/PR description for issue references (`#123`, `Closes #123`, `Relates to #123`)
-- Check branch name for issue ID patterns (`feature/gl-123-*`, `fix/gh-456-*`)
+Extract the **single directly related issue** from the MR/PR. This is the issue that will receive labels on verdict (Step 7). Evaluate in order (first match wins):
+
+1. **Branch name** — extract issue ID from patterns like `feature/gl-123-*`, `fix/gh-456-*`:
+   ```bash
+   git branch --show-current | grep -oE '(gl|gh)-[0-9]+' | grep -oE '[0-9]+'
+   ```
+2. **MR/PR description** — look for `Relates to #123`, `Closes #123`, or bare `#123` references
+
+Read the primary issue for context:
 - GitLab: `glab issue view <id>`
 - GitHub: `gh issue view <id>`
+
+> **Important:** Only the primary issue receives verdict labels (`development::done` / `development::rejected`). Linked items (below) are for context only.
 
 #### Linked items
 
@@ -85,8 +93,8 @@ Fetch additional linked issues for full context:
 
 #### How to use this context
 
-- Use the primary issue's acceptance criteria to verify the implementation satisfies requirements
-- Use linked issues to understand dependencies, related bugs, or broader feature context
+- **Primary issue** → verify the implementation satisfies its acceptance criteria. This is the only issue that receives verdict labels
+- **Linked issues** → context only (dependencies, related bugs, broader feature). Never label linked issues
 - Call out in the review if the MR partially addresses a linked issue or misses a dependency
 - If no related issues are found, proceed without them
 
@@ -274,7 +282,7 @@ payload = {
 
 > **Note:** The Draft Notes API uses `note` (not `body`) as the field name for the comment text.
 
-**Step 2 — Bulk publish all drafts** (the "Submit review" action):
+**Step 2 — Bulk publish all drafts** (submits the review as "Comment"):
 
 ```bash
 curl -s -X POST \
@@ -282,12 +290,40 @@ curl -s -X POST \
   "https://gitlab.com/api/v4/projects/$PROJECT/merge_requests/$MR_IID/draft_notes/bulk_publish"
 ```
 
+**Step 3 — Submit review verdict:**
+
+| Verdict             | API action                                       | Automated?     |
+|---------------------|--------------------------------------------------|----------------|
+| **Comment**         | `bulk_publish` (done in Step 2)                  | ✅ Automatic    |
+| **Approve**         | `POST /projects/:id/merge_requests/:iid/approve` | ✅ Automatic    |
+| **Request changes** | Not available via API, CLI, or MCP               | ⚠️ Manual only |
+
+Based on the review verdict from Step 5:
+- **Approve:** Run `glab mr approve <id>` after bulk publish. Label MR and related issue with `development::done`:
+  ```bash
+  glab mr update <id> --label "development::done"
+  glab issue update <issue_id> --label "development::done"
+  ```
+- **Request changes:** Not available via API/CLI/MCP (`reviewer_state` is internal to GitLab's web controller). Label MR and related issue with `development::rejected`, then provide the user with the form data to submit manually:
+  ```bash
+  glab mr update <id> --label "development::rejected"
+  glab issue update <issue_id> --label "development::rejected"
+  ```
+  > **Manual action required — "Submit your review" in GitLab UI:**
+  > 1. Click **"Your review"** button on the MR
+  > 2. Select: **Request changes**
+  > 3. Summary: `{paste the review summary from Step 5}`
+  > 4. Click **"Submit review"**
+- **Needs discussion / Comment:** No additional action needed after bulk publish
+
 #### Posting script
 
 Write all payloads with Python for proper escaping, then POST with curl. Process in order:
 1. Post all direct comments (Channel A) first
 2. Create all draft notes (Channel B)
 3. Bulk publish drafts
+4. If verdict is "Approve" → run `glab mr approve <id>` + label MR and issue `development::done`
+5. If verdict is "Request changes" → label MR and issue `development::rejected` + notify user to submit manually in GitLab UI
 
 Report progress as `N/total OK` or `N/total FAIL` for each channel.
 
