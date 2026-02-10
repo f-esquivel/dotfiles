@@ -31,15 +31,23 @@ Before reviewing, search the project for existing code review guidelines:
    - `.gitlab/merge_request_templates/`
    - `.github/PULL_REQUEST_TEMPLATE.md`
 
-If project conventions are found → adopt them for review structure, comment format, severity labels, and any project-specific expectations. The skill's built-in defaults (Steps 4–5) are **fallbacks only**.
+If project conventions are found → adopt them for review structure, comment format, severity labels, and any project-specific expectations. The skill's built-in defaults (Steps 5–6) are **fallbacks only**.
 
 If no conventions found → proceed with the built-in defaults below.
 
-### Step 2: Fetch MR/PR Details
+### Step 2: Checkout MR/PR Branch
+
+1. Save the current branch: `git branch --show-current`
+2. Checkout the MR/PR branch locally:
+   - GitLab: `glab mr checkout <id>`
+   - GitHub: `gh pr checkout <id>`
+3. After the review is complete (all steps done), return to the original branch: `git checkout <saved-branch>`
+
+### Step 3: Fetch MR/PR Details
 
 1. Fetch MR/PR metadata: `glab mr view <id>` or `gh pr view <id>`
 2. Fetch the diff: `glab mr diff <id>` or `gh pr diff <id>`
-3. Read changed files for full context — don't review blindly from diff alone
+3. Read changed files for full context — now on the correct branch
 4. **GitLab:** Fetch `diff_refs` for later use when posting inline comments:
    ```bash
    glab api "projects/<url-encoded-path>/merge_requests/<iid>" | python3 -c "
@@ -50,17 +58,39 @@ If no conventions found → proceed with the built-in defaults below.
    "
    ```
 
-### Step 3: Fetch Related Issue
+### Step 4: Fetch Related Issues
 
-Extract the related issue from the MR/PR:
+#### Primary issue
+
+Extract the main related issue from the MR/PR:
 - Check MR/PR description for issue references (`#123`, `Closes #123`, `Relates to #123`)
 - Check branch name for issue ID patterns (`feature/gl-123-*`, `fix/gh-456-*`)
 - GitLab: `glab issue view <id>`
 - GitHub: `gh issue view <id>`
 
-Use the issue's description and acceptance criteria as context for the review — verify the implementation actually satisfies the requirements. If no related issue is found, proceed without it.
+#### Linked items
 
-### Step 4: Structured Review
+Fetch additional linked issues for full context:
+
+- **GitLab:** Use the issue links API to get the "Linked items" section:
+  ```bash
+  glab api "projects/<url-encoded-path>/issues/<id>/links"
+  ```
+  Read each linked issue with `glab issue view <id>` — pay attention to the `link_type` (`relates_to`, `blocks`, `is_blocked_by`) to understand dependencies.
+
+- **GitHub:** Check for linked issues via timeline events:
+  ```bash
+  gh api repos/{owner}/{repo}/issues/{id}/timeline --jq '.[] | select(.event=="cross-referenced")'
+  ```
+
+#### How to use this context
+
+- Use the primary issue's acceptance criteria to verify the implementation satisfies requirements
+- Use linked issues to understand dependencies, related bugs, or broader feature context
+- Call out in the review if the MR partially addresses a linked issue or misses a dependency
+- If no related issues are found, proceed without them
+
+### Step 5: Structured Review
 
 Provide a review covering:
 
@@ -72,7 +102,7 @@ Provide a review covering:
 - **Suggestions:** Improvements or alternatives
 - **Verdict:** Approve / Request changes / Needs discussion
 
-### Step 5: Draft Review Comments
+### Step 6: Draft Review Comments
 
 After presenting the structured review, draft inline comments using the format below. If project conventions were found in Step 1, use those instead.
 
@@ -109,7 +139,7 @@ Append `(blocking)` or `(non-blocking)` when the default isn't obvious.
 Each comment must specify:
 - **File path** and **line number** (new_line in the diff)
 - **Body text** in the language requested by the user (code examples always in English)
-- **Suggestion block** only when a direct code replacement applies (see Step 6 syntax) — verbal observations, questions, thoughts, and praise should NOT include suggestion blocks
+- **Suggestion block** only when a direct code replacement applies (see Step 7 syntax) — verbal observations, questions, thoughts, and praise should NOT include suggestion blocks
 
 #### Examples
 
@@ -141,13 +171,14 @@ Each comment must specify:
 
 Present all drafted comments to the user for approval before posting.
 
-### Step 6: Post Inline Comments (GitLab)
+### Step 7: Post Inline Comments (GitLab)
 
-#### Why `curl` and not `glab api` CLI
+Comments are split into two channels based on intent:
 
-`glab api -f` sends form data — nested objects like `position` do **not** serialize correctly. Always use `curl` with `Content-Type: application/json` and a proper JSON body for the Discussions API.
-
-> **MCP alternative:** `mcp__gitlab__glab_api` with `flags: {"method": "POST", "header": ["Content-Type: application/json"], "input": "/path/to/payload.json"}` also works for posting inline `DiffNote` comments with suggestions. However, the MCP wrapper only returns pagination metadata (not the full API response), so you **cannot verify** the note type or extract IDs from the response. Use MCP for simple operations (GETs, deletes) and `curl` for posting where response verification matters.
+| Channel             | Labels                                                 | API             | Why                                          |
+|---------------------|--------------------------------------------------------|-----------------|----------------------------------------------|
+| **Direct comments** | `praise:`, `question:`, `thought:`, discussion replies | Discussions API | Conversational, immediate visibility         |
+| **Review notes**    | `issue:`, `suggestion:`, `nitpick:`, `chore:`          | Draft Notes API | Batched, atomic publish, single notification |
 
 #### Auth Token
 
@@ -155,6 +186,12 @@ Extract the token from glab's auth status:
 ```bash
 glab auth status -t 2>&1
 ```
+
+#### Why `curl` and not `glab api` CLI
+
+`glab api -f` sends form data — nested objects like `position` do **not** serialize correctly. Always use `curl` with `Content-Type: application/json` and a proper JSON body for both APIs.
+
+> **MCP note:** `mcp__gitlab__glab_api` only returns pagination metadata (not the full API response), so you cannot verify note types or extract IDs. Use `curl` for posting where response verification matters.
 
 #### GitLab Suggestion Syntax
 
@@ -191,15 +228,15 @@ The `position` object determines where the comment anchors on the diff:
 
 Suggestions work on added and context lines. Avoid placing suggestions on removed-only lines.
 
-#### Posting via curl
+#### Channel A: Direct Comments (Discussions API)
 
-Write JSON payloads with Python for proper escaping, then POST with curl:
+For `praise:`, `question:`, `thought:`, and discussion replies. These appear immediately.
+
+**Endpoint:** `POST /projects/:id/merge_requests/:iid/discussions`
 
 ```python
-import json, subprocess
-
 payload = {
-    "body": "Comment text\n\n```suggestion:-0+0\nreplacement line\n```",
+    "body": "💚 praise: Clean separation of concerns here.",
     "position": {
         "position_type": "text",
         "base_sha": "<base_sha>",
@@ -210,43 +247,75 @@ payload = {
         "new_line": 42
     }
 }
-
-with open('/tmp/gl_comment.json', 'w') as f:
-    json.dump(payload, f, ensure_ascii=False)
-
-subprocess.run([
-    "curl", "-s", "-X", "POST",
-    "-H", f"PRIVATE-TOKEN: {token}",
-    "-H", "Content-Type: application/json",
-    "-d", "@/tmp/gl_comment.json",
-    f"https://gitlab.com/api/v4/projects/{project}/merge_requests/{mr_iid}/discussions"
-])
 ```
 
-#### Batch posting
+#### Channel B: Review Notes (Draft Notes API)
 
-For multiple comments, build a list of payloads and iterate — post all in a single Python script for efficiency. Report progress as `N/total OK` or `N/total FAIL`.
+For `issue:`, `suggestion:`, `nitpick:`, `chore:`. These accumulate as pending drafts visible only to the author, then publish atomically.
 
-#### Updating a note
+**Step 1 — Create draft notes** (one per comment):
 
+`POST /projects/:id/merge_requests/:iid/draft_notes`
+
+```python
+payload = {
+    "note": "🟠 issue: Off-by-one error.\n\n```suggestion:-0+0\nfor ($i = 0; $i <= count($items) - 1; $i++) {\n```",
+    "position": {
+        "base_sha": "<base_sha>",
+        "head_sha": "<head_sha>",
+        "start_sha": "<start_sha>",
+        "position_type": "text",
+        "old_path": "path/to/file.php",
+        "new_path": "path/to/file.php",
+        "new_line": 42
+    }
+}
 ```
-PUT /projects/:id/merge_requests/:iid/discussions/:discussion_id/notes/:note_id
+
+> **Note:** The Draft Notes API uses `note` (not `body`) as the field name for the comment text.
+
+**Step 2 — Bulk publish all drafts** (the "Submit review" action):
+
+```bash
+curl -s -X POST \
+  -H "PRIVATE-TOKEN: $TOKEN" \
+  "https://gitlab.com/api/v4/projects/$PROJECT/merge_requests/$MR_IID/draft_notes/bulk_publish"
 ```
 
-**Warning:** Updating the body of an inline note preserves its position but may break suggestion rendering. Prefer deleting + recreating over updating when the suggestion block needs changes.
+#### Posting script
 
-#### Deleting a note
+Write all payloads with Python for proper escaping, then POST with curl. Process in order:
+1. Post all direct comments (Channel A) first
+2. Create all draft notes (Channel B)
+3. Bulk publish drafts
 
+Report progress as `N/total OK` or `N/total FAIL` for each channel.
+
+#### Managing notes
+
+**Delete a draft note** (before publishing):
+```
+DELETE /projects/:id/merge_requests/:iid/draft_notes/:draft_note_id
+```
+
+**Delete a published note:**
 ```
 DELETE /projects/:id/merge_requests/:iid/discussions/:discussion_id/notes/:note_id
 ```
 
-Find discussion/note IDs by listing discussions:
+**Update a published note:**
+```
+PUT /projects/:id/merge_requests/:iid/discussions/:discussion_id/notes/:note_id
+```
+
+**Warning:** Updating an inline note preserves its position but may break suggestion rendering. Prefer deleting + recreating when the suggestion block needs changes.
+
+Find discussion/note IDs:
 ```bash
 glab api "projects/<path>/merge_requests/<iid>/discussions"
 ```
 
-### Step 6b: Post Inline Comments (GitHub)
+### Step 7b: Post Inline Comments (GitHub)
 
 Use the `gh api` with the Pull Request Review Comments API:
 
