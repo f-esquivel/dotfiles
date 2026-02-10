@@ -13,9 +13,10 @@ dotfiles/
 ├── git/                    # Git: .gitconfig, context templates
 ├── ghostty/config          # Terminal emulator
 ├── php/                    # PHP config and extensions
-├── utils/                  # .lazy-nvm.sh, .npmrc, .hushlogin
+├── utils/                  # .lazy-nvm.sh, .npmrc, .hushlogin, gcp-sql-proxy.sh
 ├── claude/                 # Global Claude Code config (symlinked to ~/.claude/)
 ├── .claude/                # Project-local Claude Code config
+├── husky/                  # Git hook helpers (NVM init)
 ├── jetbrains/              # JetBrains Toolbox settings
 ├── games/lol/              # League of Legends config sync
 └── scripts/                # Maintenance scripts
@@ -43,7 +44,7 @@ Files are symlinked from dotfiles dir to home:
 type(scope): description
 
 Types: feat, fix, refactor, docs, chore, test, perf
-Scopes: zsh, brew, ssh, git, php, scripts, claude, lol
+Scopes: zsh, brew, ssh, git, ghostty, php, husky, scripts, claude, jetbrains, lol, config, docs
 ```
 
 Examples:
@@ -71,8 +72,8 @@ Each package has an inline comment explaining what it does.
 **Global configs** (symlinked to `~/.claude/`):
 - `claude/settings.json` - Global settings (permissions, hooks, model, plugins)
 - `claude/CLAUDE.md` - Global instructions (workflow rules, git platform detection)
-- `claude/commands/` - Global slash commands (`/commit`)
-- `claude/skills/` - Global skills (`/spec`, `/review-mr`)
+- `claude/commands/` - Global slash commands (currently empty — commands migrated to skills)
+- `claude/skills/` - Global skills (`/commit`, `/spec`, `/create-issue`, `/create-mr`, `/review-mr`)
 - `claude/hooks/` - Hook scripts (commit validation)
 - `claude/statusline.sh` - Custom status bar
 
@@ -83,7 +84,7 @@ Each package has an inline comment explaining what it does.
 
 **Project-local configs** (NOT symlinked):
 - `.claude/settings.local.json` - Project permissions
-- `.claude/commands/` - Project-specific commands
+- `.claude/commands/` - Project-specific commands (`/brewfile-organize`)
 
 ## Important Rules
 
@@ -95,14 +96,16 @@ Each package has an inline comment explaining what it does.
 
 ## Key Scripts
 
-| Script                      | Purpose                 |
-|-----------------------------|-------------------------|
-| `install.sh`                | Bootstrap entire system |
-| `scripts/update.sh`         | Update all components   |
-| `scripts/php-setup.sh`      | Symlink PHP config      |
-| `scripts/php-extensions.sh` | Manage PECL extensions  |
-| `scripts/lol-export.sh`     | Export LoL settings     |
-| `scripts/lol-import.sh`     | Import LoL settings     |
+| Script                       | Purpose                 |
+|------------------------------|-------------------------|
+| `install.sh`                 | Bootstrap entire system |
+| `scripts/update.sh`          | Update all components   |
+| `scripts/php-setup.sh`       | Symlink PHP config      |
+| `scripts/php-extensions.sh`  | Manage PECL extensions  |
+| `scripts/lol-export.sh`      | Export LoL settings     |
+| `scripts/lol-import.sh`      | Import LoL settings     |
+| `scripts/kc-redirect-uri.sh` | Keycloak redirect URIs  |
+| `scripts/macos-defaults.sh`  | macOS system defaults   |
 
 ## Shell Configuration
 

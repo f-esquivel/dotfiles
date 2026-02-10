@@ -49,6 +49,11 @@ Options:
 - **Ghostty** - Terminal emulator config
 - **Homebrew** - Package management via Brewfile
 - **Node.js** - Node.js LTS automatically installed via NVM (lazy-loaded)
+- **PHP** - Custom php.ini overrides and PECL extension management
+- **Claude Code** - Global settings, skills, hooks, and MCP servers
+- **JetBrains** - Toolbox settings sync
+- **Husky** - NVM initialization for git hooks
+- **League of Legends** - Game settings export/import
 
 ### Directory Structure
 
@@ -57,26 +62,51 @@ dotfiles/
 ├── install.sh              # Main installation script
 ├── .gitignore              # Files to ignore in git
 ├── brew/
-│   ├── Brewfile            # Homebrew packages
+│   ├── Brewfile            # Homebrew packages (organized by category)
 │   └── Brewfile.local.template # Template for machine-specific packages
-├── git/
-│   ├── .gitconfig          # Git configuration
-│   ├── .gitconfig.context.template # Template for new Git contexts
-│   └── README.md           # Git setup documentation
 ├── zsh/
 │   ├── .zshrc              # Main Zsh config
 │   ├── .zshrc.user         # User-specific settings
 │   ├── .zshrc.secrets      # API keys (git-ignored)
 │   ├── .zprofile           # Zsh login shell config
 │   └── .zimrc              # Zim plugin configuration
+├── git/
+│   ├── .gitconfig          # Git configuration
+│   ├── .gitconfig.context.template # Template for new Git contexts
+│   └── README.md           # Git setup documentation
 ├── ssh/
 │   ├── config              # SSH host configurations
 │   ├── config.local        # Machine-specific SSH keys (git-ignored)
 │   └── README.md           # SSH setup documentation
 ├── ghostty/
 │   └── config              # Ghostty terminal config
-└── utils/
-    └── .lazy-nvm.sh        # Lazy-loading NVM wrapper
+├── php/
+│   ├── conf.d/custom.ini   # PHP config overrides
+│   └── extensions.list     # PECL extensions to install
+├── utils/
+│   ├── .lazy-nvm.sh        # Lazy-loading NVM wrapper
+│   ├── .npmrc              # npm configuration
+│   ├── .hushlogin          # Suppress login banner
+│   └── gcp-sql-proxy.sh    # GCP Cloud SQL proxy helper
+├── claude/                 # Global Claude Code config (symlinked to ~/.claude/)
+│   ├── settings.json       # Global settings
+│   ├── CLAUDE.md           # Global instructions
+│   ├── skills/             # Skills (/commit, /spec, /create-issue, /create-mr, /review-mr)
+│   ├── hooks/              # Hook scripts (commit validation)
+│   └── statusline.sh       # Custom status bar
+├── husky/
+│   └── init.sh             # NVM init for git hooks
+├── jetbrains/
+│   └── .settings.json      # JetBrains Toolbox settings
+├── games/lol/              # League of Legends config sync
+└── scripts/
+    ├── update.sh           # Update all components
+    ├── php-setup.sh        # Symlink PHP config
+    ├── php-extensions.sh   # Manage PECL extensions
+    ├── macos-defaults.sh   # macOS system defaults
+    ├── kc-redirect-uri.sh  # Keycloak redirect URI manager
+    ├── lol-export.sh       # Export LoL settings
+    └── lol-import.sh       # Import LoL settings
 ```
 
 ## Manual Setup
@@ -92,8 +122,8 @@ brew bundle install --file=~/dotfiles/brew/Brewfile
 # Install machine-specific packages (if you have Brewfile.local)
 brew bundle install --file=~/dotfiles/brew/Brewfile.local
 
-# Update Brewfile with currently installed packages
-brew bundle dump --file=~/dotfiles/brew/Brewfile --force
+# After installing new packages, manually add them to Brewfile
+# Do NOT use `brew bundle dump --force` — it destroys the organized category structure
 
 # Remove packages not in Brewfile
 brew bundle cleanup --file=~/dotfiles/brew/Brewfile
@@ -160,6 +190,30 @@ mkdir -p ~/.config/ghostty
 ln -sf ~/dotfiles/ghostty/config ~/.config/ghostty/config
 ```
 
+### 6. PHP (Optional)
+
+```bash
+# Symlink PHP config
+./scripts/php-setup.sh
+
+# Install PECL extensions from the list
+./scripts/php-extensions.sh install
+```
+
+### 7. Claude Code
+
+```bash
+# Symlink global config to ~/.claude/
+ln -sf ~/dotfiles/claude/settings.json ~/.claude/settings.json
+ln -sf ~/dotfiles/claude/CLAUDE.md ~/.claude/CLAUDE.md
+ln -sf ~/dotfiles/claude/skills ~/.claude/skills
+ln -sf ~/dotfiles/claude/hooks ~/.claude/hooks
+ln -sf ~/dotfiles/claude/statusline.sh ~/.claude/statusline.sh
+
+# Register MCP servers (handled by install.sh)
+# See setup_claude_code() in install.sh for current registrations
+```
+
 ## Configuration Files
 
 ### Tracked in Git (Safe to Share)
@@ -184,8 +238,9 @@ ln -sf ~/dotfiles/ghostty/config ~/.config/ghostty/config
 # Install the package
 brew install package-name
 
-# Update Brewfile
-brew bundle dump --file=~/dotfiles/brew/Brewfile --force
+# Manually add it to the Brewfile in the correct category with an inline comment
+# Do NOT use `brew bundle dump --force` — it destroys the organized category structure
+vim ~/dotfiles/brew/Brewfile
 ```
 
 ### Adding Environment Variables
@@ -244,13 +299,14 @@ git config user.email  # Should show your default email
 5. Edit `ssh/config.local` with your SSH key paths
 6. (Optional) Create Git context configs for work/client projects (see `git/README.md`)
 7. (Optional) Create `brew/Brewfile.local` for machine-specific packages
-8. Restart your terminal
+8. (Optional) Run `./scripts/php-setup.sh` for PHP configuration
+9. Restart your terminal
 
 ## Safety Features
 
 ### Automatic Backups
 
-The install script automatically backs up existing configurations before replacing them:
+The `install` script automatically backs up existing configurations before replacing them:
 
 ```
 ~/.dotfiles_backup/
@@ -293,9 +349,8 @@ brew update && brew upgrade
 
 ### Update Brewfile After Installing New Packages
 
-```bash
-brew bundle dump --file=~/dotfiles/brew/Brewfile --force
-```
+Manually add the package to `brew/Brewfile` in the correct category with an inline comment.
+Do **not** use `brew bundle dump --force` — it destroys the organized category structure.
 
 ### Update Zim Plugins
 
