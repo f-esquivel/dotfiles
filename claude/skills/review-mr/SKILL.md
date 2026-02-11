@@ -3,7 +3,7 @@ name: review-mr
 description: Review an existing merge request or pull request by ID. Fetches diff, analyzes changes, and provides structured code review with inline diff comments.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Task
+allowed-tools: Read, Write, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Task
 argument-hint: <MR/PR number>
 ---
 
@@ -370,6 +370,51 @@ replacement
 ```
 ````
 
+### Step 8: Save Review History
+
+After posting comments and before returning to the original branch, save a review history file.
+
+1. **Determine file path:** `reviews/{gl|gh}-{mr_id}.md`
+   - Use `gl` for GitLab, `gh` for GitHub
+   - `mr_id` is the MR/PR number from `$ARGUMENTS`
+2. **Create `reviews/` directory** if it doesn't exist:
+   - `mkdir -p reviews`
+   - Add `reviews/` to `.git/info/exclude` if not already present (same pattern as `specs/`)
+3. **Write the review history file** with this structure:
+
+```markdown
+---
+mr_id: <id>
+platform: gitlab  # or github
+project: "<group/project>"
+branch: "<source-branch>"
+target_branch: <target>
+title: "<MR/PR title>"
+primary_issue: <issue_id or null>
+rounds:
+  - round: 1
+    date: "<ISO 8601 timestamp>"
+    head_commit: "<head_sha from diff_refs>"
+    verdict: "<approve|request_changes|needs_discussion>"
+    comments_posted: <count>
+---
+
+## Round 1 — <YYYY-MM-DD>
+
+### Summary
+<2-3 sentence summary from Step 5>
+
+### Verdict: <Approve / Request Changes / Needs Discussion>
+
+### Comments
+| # | Status | Comment |
+|---|--------|---------|
+| 1 | ⏳ open | <emoji> **<label>** `<file:line>` — <short description> |
+| 2 | ⏳ open | ... |
+```
+
+4. Inform the user the review was saved to `reviews/{gl|gh}-{mr_id}.md`
+
 ## Rules
 
 - **NEVER** auto-merge or auto-approve
@@ -378,3 +423,6 @@ replacement
 - **ALWAYS** draft and present all comments for user approval before posting
 - **ALWAYS** use `curl` (not `glab api`) for posting GitLab inline discussions with suggestions
 - When posting comments, verify the note `type` is `DiffNote` (not just `DiscussionNote`) — only `DiffNote` renders the suggestion widget
+- Review files (`reviews/` directory) are **internal-use only** — never commit, never reference externally
+- **NEVER** add `reviews/` to `.gitignore` — use `.git/info/exclude` instead
+- When creating `reviews/` for the first time, automatically add it to `.git/info/exclude`

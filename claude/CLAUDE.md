@@ -32,6 +32,14 @@ Spec files (`specs/` directory) are **internal-use only** — they exist to impr
 * When creating a `specs/` directory in a project for the first time, automatically add `specs/` to `.git/info/exclude`
 * Spec content can inform issues and MRs, but the spec file itself must not be linked, attached, or mentioned
 
+## Review Files
+
+Review files (`reviews/` directory) are **internal-use only** — they exist to track review history, never leave the local machine.
+
+* **NEVER** commit review files or add them to `.gitignore` (use `.git/info/exclude` instead)
+* **NEVER** reference review files in issues, MRs, PRs, or any external documentation
+* When creating a `reviews/` directory in a project for the first time, automatically add `reviews/` to `.git/info/exclude`
+
 ## Git Rules
 
 * `git push` is **blocked** globally — never attempt to push. The user will push manually when ready

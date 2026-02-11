@@ -82,6 +82,10 @@ Each package has an inline comment explaining what it does.
 - `install.sh` registers MCP servers via `claude mcp add --scope user` during setup
 - To add new MCP servers to dotfiles, add `claude mcp add` commands to `setup_claude_code()` in `install.sh`
 
+**Review history** (created per-project by `/review-mr` and `/re-review-mr`):
+- `reviews/{gl|gh}-{id}.md` — Review rounds with YAML frontmatter + markdown body
+- `reviews/` is auto-excluded via `.git/info/exclude` (never committed)
+
 **Project-local configs** (NOT symlinked):
 - `.claude/settings.local.json` - Project permissions
 - `.claude/commands/` - Project-specific commands (`/brewfile-organize`)
