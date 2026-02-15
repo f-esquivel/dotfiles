@@ -16,7 +16,7 @@ Re-review MR/PR: $ARGUMENTS
 ### Step 0: Detect Platform
 
 Detect git platform via `git remote get-url origin`:
-- Contains `gitlab` → prefer MCP tools (`mcp__gitlab__*`) when available, fall back to `glab` CLI if not
+- Contains `gitlab` → use `glab` CLI
 - Contains `github` → use `gh` CLI
 
 Set the platform prefix: `gl` for GitLab, `gh` for GitHub.
@@ -159,6 +159,16 @@ Wait for user approval before posting.
 Follow the same posting procedure as `/review-mr`:
 - **GitLab:** Step 7 (2-channel: Discussions API for praise/question/thought, Draft Notes API for issue/suggestion/nitpick/chore, then bulk publish + verdict)
 - **GitHub:** Step 7b (Pull Request Review Comments API)
+
+> **⚠️ bulk_publish failure handling (CRITICAL — prevents duplicate comments)**
+>
+> GitLab's `bulk_publish` may return HTTP 500 yet still publish all drafts server-side. **Never retry or fall back to individual publish without verifying draft state first.**
+>
+> If `bulk_publish` returns a non-2xx status:
+> 1. **Re-fetch the draft notes list** to check actual state
+> 2. **If the list is empty** → bulk_publish succeeded despite the error. Continue to verdict.
+> 3. **If drafts remain** → publish only the remaining drafts individually via `PUT /draft_notes/:id/publish`
+> 4. **After individual publish, verify again** — re-fetch the list to confirm all drafts are gone before proceeding.
 
 ### Step 10: Update Review History
 

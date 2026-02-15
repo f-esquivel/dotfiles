@@ -16,7 +16,7 @@ $ARGUMENTS
 ### Step 0: Detect Platform
 
 Detect git platform via `git remote get-url origin`:
-- Contains `gitlab` → prefer MCP tools (`mcp__gitlab__*`) when available, fall back to `glab` CLI if not
+- Contains `gitlab` → use `glab` CLI
 - Contains `github` → use `gh` CLI
 
 ### Step 1: Analyze Current Branch

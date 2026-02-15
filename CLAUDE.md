@@ -77,11 +77,6 @@ Each package has an inline comment explaining what it does.
 - `claude/hooks/` - Hook scripts (commit validation)
 - `claude/statusline.sh` - Custom status bar
 
-**MCP servers** (registered via `claude mcp add`, stored in `~/.claude.json`):
-- MCP servers live in `~/.claude.json` which contains runtime state — cannot be symlinked
-- `install.sh` registers MCP servers via `claude mcp add --scope user` during setup
-- To add new MCP servers to dotfiles, add `claude mcp add` commands to `setup_claude_code()` in `install.sh`
-
 **Review history** (created per-project by `/review-mr` and `/re-review-mr`):
 - `reviews/{gl|gh}-{id}.md` — Review rounds with YAML frontmatter + markdown body
 - `reviews/` is auto-excluded via `.git/info/exclude` (never committed)

@@ -16,7 +16,7 @@ Review MR/PR: $ARGUMENTS
 ### Step 0: Detect Platform
 
 Detect git platform via `git remote get-url origin`:
-- Contains `gitlab` → prefer MCP tools (`mcp__gitlab__*`) when available, fall back to `glab` CLI if not
+- Contains `gitlab` → use `glab` CLI
 - Contains `github` → use `gh` CLI
 
 ### Step 1: Discover Review Conventions
@@ -290,6 +290,24 @@ curl -s -X POST \
   "https://gitlab.com/api/v4/projects/$PROJECT/merge_requests/$MR_IID/draft_notes/bulk_publish"
 ```
 
+> **⚠️ Handling bulk_publish failures (CRITICAL — prevents duplicate comments)**
+>
+> GitLab's `bulk_publish` may return HTTP 500 yet still publish all drafts server-side. **Never retry or fall back to individual publish without verifying draft state first.**
+>
+> If `bulk_publish` returns a non-2xx status:
+>
+> 1. **Re-fetch the draft notes list** to check actual state:
+>    ```bash
+>    curl -s -H "PRIVATE-TOKEN: $TOKEN" \
+>      "$BASE_URL/draft_notes"
+>    ```
+> 2. **If the list is empty** → bulk_publish succeeded despite the error. Continue to Step 3.
+> 3. **If drafts remain** → publish only the remaining drafts individually:
+>    ```
+>    PUT /projects/:id/merge_requests/:iid/draft_notes/:draft_note_id/publish
+>    ```
+> 4. **After individual publish, verify again** — re-fetch the list to confirm all drafts are gone before proceeding.
+
 **Step 3 — Submit review verdict:**
 
 | Verdict             | API action                                       | Automated?     |
@@ -322,8 +340,9 @@ Write all payloads with Python for proper escaping, then POST with curl. Process
 1. Post all direct comments (Channel A) first
 2. Create all draft notes (Channel B)
 3. Bulk publish drafts
-4. If verdict is "Approve" → run `glab mr approve <id>` + label MR and issue `development::done`
-5. If verdict is "Request changes" → label MR and issue `development::rejected` + notify user to submit manually in GitLab UI
+4. **If bulk publish fails** → re-fetch draft list; if empty, continue (it succeeded silently); if drafts remain, publish them individually, then re-fetch to confirm
+5. If verdict is "Approve" → run `glab mr approve <id>` + label MR and issue `development::done`
+6. If verdict is "Request changes" → label MR and issue `development::rejected` + notify user to submit manually in GitLab UI
 
 Report progress as `N/total OK` or `N/total FAIL` for each channel.
 
