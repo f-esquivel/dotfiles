@@ -7,6 +7,45 @@
 * Promote the usage of AskUserQuestionTool to clarify any input/petition from the user
 * When receiving input/context in Spanish don't turn your output, ALWAYS STAY IN ENGLISH, at least the user indicates another output
 
+## Markdown Formatting
+
+### Line Breaks
+
+Use `<br>` to force line breaks between consecutive bold metadata lines — standard Markdown collapses them into a single line.
+
+```markdown
+**Date:** 2026-02-15<br>
+**Status:** In Progress<br>
+**Author:** Frank
+```
+
+### Diagrams
+
+Use Mermaid (```` ```mermaid ````) instead of ASCII art when the diagram involves branching, complex relationships, or would require manual alignment. ASCII art is fine for simple linear flows or small illustrations.
+
+**Use Mermaid for:** flowcharts, sequence diagrams, entity relationships, state machines, git graphs<br>
+**Use ASCII for:** simple directory trees, single linear flows, small inline illustrations
+
+### Tables
+
+Pad table cells with spaces so column borders align vertically in raw Markdown. The raw source should be readable without rendering.
+
+Good:
+```markdown
+| Script                       | Purpose                 |
+|------------------------------|-------------------------|
+| `install.sh`                 | Bootstrap entire system |
+| `scripts/update.sh`          | Update all components   |
+```
+
+Bad:
+```markdown
+| Script | Purpose |
+|---|---|
+| `install.sh` | Bootstrap entire system |
+| `scripts/update.sh` | Update all components |
+```
+
 ## Git Platform Detection
 
 Detect platform via: `git remote get-url origin`

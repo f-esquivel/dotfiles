@@ -25,27 +25,38 @@ dotfiles/
 ## Key Conventions
 
 ### File Patterns
-- `*.local` → Machine-specific, git-ignored (e.g., `ssh/config.local`)
-- `*.secrets` → Sensitive data, git-ignored (e.g., `.zshrc.secrets`)
-- `*.template` → Git-tracked templates for local files
+
+Suffix determines visibility and tracking:
+
+| Suffix       | Purpose                          | Git-tracked | Example                 |
+|--------------|----------------------------------|-------------|-------------------------|
+| `*.local`    | Machine-specific overrides       | No          | `ssh/config.local`      |
+| `*.secrets`  | Sensitive data (API keys, creds) | No          | `.zshrc.secrets`        |
+| `*.template` | Scaffolds for local files        | Yes         | `config.local.template` |
 
 ### Symlink Strategy
-Files are symlinked from dotfiles dir to home:
-- `~/.zshrc` → `dotfiles/zsh/.zshrc`
-- `~/.gitconfig` → `dotfiles/git/.gitconfig`
-- `~/.ssh/config` → `dotfiles/ssh/config`
+
+`install.sh` symlinks config files from this repo into `$HOME` so changes here propagate immediately:
+
+| Source                    | Target          |
+|---------------------------|-----------------|
+| `dotfiles/zsh/.zshrc`     | `~/.zshrc`      |
+| `dotfiles/git/.gitconfig` | `~/.gitconfig`  |
+| `dotfiles/ssh/config`     | `~/.ssh/config` |
+| `dotfiles/claude/`        | `~/.claude/`    |
 
 ### Environment Variable
-`$DOTFILES_DIR` points to the repo location (auto-detected or set in `.zshrc.user`).
+
+`$DOTFILES_DIR` points to the repo location (auto-detected in `.zshrc`, overridable in `.zshrc.user`).
 
 ## Commit Message Format
 
 ```
 type(scope): description
-
-Types: feat, fix, refactor, docs, chore, test, perf
-Scopes: zsh, brew, ssh, git, ghostty, php, husky, scripts, claude, jetbrains, lol, config, docs
 ```
+
+**Types:** `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `perf`<br>
+**Scopes:** `zsh`, `brew`, `ssh`, `git`, `ghostty`, `php`, `husky`, `scripts`, `claude`, `jetbrains`, `lol`, `config`, `docs`
 
 Examples:
 - `feat(zsh): add new alias`
@@ -54,7 +65,8 @@ Examples:
 
 ## Brewfile Organization
 
-Packages in `brew/Brewfile` are organized by category:
+Packages in `brew/Brewfile` are grouped by category and must stay in this order. Each package includes an inline comment explaining what it does.
+
 1. Taps
 2. CLI Tools & Utilities
 3. Development Tools
@@ -65,53 +77,62 @@ Packages in `brew/Brewfile` are organized by category:
 8. VSCode Extensions
 9. Go Packages
 
-Each package has an inline comment explaining what it does.
+Do NOT run `brew bundle dump --force` — it destroys the manual organization.
 
 ## Claude Code Setup
 
-**Global configs** (symlinked to `~/.claude/`):
-- `claude/settings.json` - Global settings (permissions, hooks, model, plugins)
-- `claude/CLAUDE.md` - Global instructions (workflow rules, git platform detection)
-- `claude/commands/` - Global slash commands (currently empty — commands migrated to skills)
-- `claude/skills/` - Global skills (`/commit`, `/spec`, `/create-issue`, `/create-mr`, `/review-mr`, `/re-review-mr`)
-- `claude/hooks/` - Hook scripts (commit validation)
-- `claude/statusline.sh` - Custom status bar
+### Global Configs (symlinked to `~/.claude/`)
 
-**Review history** (created per-project by `/review-mr` and `/re-review-mr`):
+| Path                   | Purpose                                                                                         |
+|------------------------|-------------------------------------------------------------------------------------------------|
+| `claude/settings.json` | Global settings (permissions, hooks, model, plugins)                                            |
+| `claude/CLAUDE.md`     | Global instructions (workflow rules, git platform detection)                                    |
+| `claude/commands/`     | Global slash commands (currently empty — migrated to skills)                                    |
+| `claude/skills/`       | Global skills: `/commit`, `/spec`, `/create-issue`, `/create-mr`, `/review-mr`, `/re-review-mr` |
+| `claude/hooks/`        | Hook scripts (commit validation)                                                                |
+| `claude/statusline.sh` | Custom status bar                                                                               |
+
+### Review History (per-project, never committed)
+
+Created by `/review-mr` and `/re-review-mr`:
 - `reviews/{gl|gh}-{id}.md` — Review rounds with YAML frontmatter + markdown body
-- `reviews/` is auto-excluded via `.git/info/exclude` (never committed)
+- Auto-excluded via `.git/info/exclude`
 
-**Project-local configs** (NOT symlinked):
-- `.claude/settings.local.json` - Project permissions
-- `.claude/commands/` - Project-specific commands (`/brewfile-organize`)
+### Project-Local Configs (NOT symlinked)
+
+| Path                          | Purpose                                          |
+|-------------------------------|--------------------------------------------------|
+| `.claude/settings.local.json` | Project-specific permissions                     |
+| `.claude/commands/`           | Project-specific commands (`/brewfile-organize`) |
 
 ## Important Rules
 
-1. **Never commit secrets** - Use `.local` or `.secrets` files
-2. **Use templates** - Copy `.template` files for local setup
-3. **Test with dry-run** - Run `./install.sh --dry-run` before install
-4. **Preserve organization** - Don't run `brew bundle dump --force` on Brewfile directly
-5. **Backup exists** - Timestamped backups in `~/.dotfiles_backup/`
+1. **Never commit secrets** — use `.local` or `.secrets` files for anything sensitive
+2. **Use templates** — copy `.template` files for machine-specific setup, never edit templates directly
+3. **Dry-run first** — run `./install.sh --dry-run` before running install to preview what will change
+4. **Preserve Brewfile order** — never run `brew bundle dump --force`, it destroys manual categorization
+5. **Backups are automatic** — `install.sh` creates timestamped backups in `~/.dotfiles_backup/` before overwriting
 
 ## Key Scripts
 
-| Script                       | Purpose                 |
-|------------------------------|-------------------------|
-| `install.sh`                 | Bootstrap entire system |
-| `scripts/update.sh`          | Update all components   |
-| `scripts/php-setup.sh`       | Symlink PHP config      |
-| `scripts/php-extensions.sh`  | Manage PECL extensions  |
-| `scripts/lol-export.sh`      | Export LoL settings     |
-| `scripts/lol-import.sh`      | Import LoL settings     |
-| `scripts/kc-redirect-uri.sh` | Keycloak redirect URIs  |
-| `scripts/macos-defaults.sh`  | macOS system defaults   |
+| Script                       | Purpose                                       |
+|------------------------------|-----------------------------------------------|
+| `install.sh`                 | Bootstrap entire system (symlinks, packages)  |
+| `scripts/update.sh`          | Update Homebrew, Zim, and all managed tools   |
+| `scripts/php-setup.sh`       | Symlink PHP config to Homebrew PHP dir        |
+| `scripts/php-extensions.sh`  | Install/manage PECL extensions                |
+| `scripts/lol-export.sh`      | Export League of Legends settings to repo     |
+| `scripts/lol-import.sh`      | Import League of Legends settings from repo   |
+| `scripts/kc-redirect-uri.sh` | Manage Keycloak redirect URIs                 |
+| `scripts/macos-defaults.sh`  | Apply macOS system preferences via `defaults` |
 
 ## Shell Configuration
 
-Loading order:
-1. `.zprofile` - Login shell (Homebrew path)
-2. `.zshrc` - Zim plugins
-3. `.zshrc.user` - Aliases, paths, env vars
-4. `.zshrc.secrets` - API keys (git-ignored)
+Zsh files load in this order — each layer adds to the previous:
 
-NVM is lazy-loaded via `utils/.lazy-nvm.sh` for faster shell startup.
+1. `.zprofile` — Login shell setup (Homebrew PATH)
+2. `.zshrc` — Zim framework and plugins
+3. `.zshrc.user` — Aliases, paths, environment variables
+4. `.zshrc.secrets` — API keys and tokens (git-ignored)
+
+NVM is lazy-loaded via `utils/.lazy-nvm.sh` to avoid ~2s shell startup penalty.
