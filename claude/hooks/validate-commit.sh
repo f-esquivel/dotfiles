@@ -1,5 +1,6 @@
 #!/bin/bash
 # Pre-tool hook: validate git commit messages against project commitlint config
+# Supports: Node.js commitlint (local/global), Go commitlint (.commitlint.yaml)
 # Falls back to basic conventional commit regex if no commitlint found
 # Exit 0 = allow, Exit 2 = block with message
 
@@ -29,32 +30,51 @@ fi
 # Resolve project directory from hook context or PWD
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
-# Strategy 1: Use project's commitlint if available
+# --- Strategy 1: Node.js commitlint (project-local) ---
 if [ -f "$PROJECT_DIR/node_modules/.bin/commitlint" ]; then
-  # Use the project's commitlint with its own config
   RESULT=$(echo "$MSG" | "$PROJECT_DIR/node_modules/.bin/commitlint" 2>&1)
   STATUS=$?
   if [ $STATUS -ne 0 ]; then
-    echo "BLOCKED by project commitlint:" >&2
+    echo "BLOCKED by project commitlint (node):" >&2
     echo "$RESULT" >&2
     exit 2
   fi
   exit 0
 fi
 
-# Strategy 2: Check for global commitlint
-if command -v commitlint &>/dev/null; then
-  RESULT=$(cd "$PROJECT_DIR" && echo "$MSG" | commitlint 2>&1)
-  STATUS=$?
-  if [ $STATUS -ne 0 ]; then
-    echo "BLOCKED by commitlint:" >&2
-    echo "$RESULT" >&2
-    exit 2
+# --- Strategy 2: Go commitlint (config-based) ---
+# Detects .commitlint.yaml in project root and uses Go commitlint binary
+if [ -f "$PROJECT_DIR/.commitlint.yaml" ] || [ -f "$PROJECT_DIR/.commitlint.yml" ]; then
+  COMMITLINT_GO=$(command -v commitlint 2>/dev/null)
+  if [ -n "$COMMITLINT_GO" ] && "$COMMITLINT_GO" --version 2>&1 | grep -qE 'version v[0-9]'; then
+    RESULT=$(cd "$PROJECT_DIR" && echo "$MSG" | "$COMMITLINT_GO" lint 2>&1)
+    STATUS=$?
+    if [ $STATUS -ne 0 ]; then
+      echo "BLOCKED by project commitlint (go):" >&2
+      echo "$RESULT" >&2
+      exit 2
+    fi
+    exit 0
   fi
-  exit 0
 fi
 
-# Strategy 3: Fallback — basic conventional commit regex
+# --- Strategy 3: Node.js commitlint (global) ---
+# Only if a Node-style config exists (commitlint.config.*, .commitlintrc.*)
+if ls "$PROJECT_DIR"/commitlint.config.* "$PROJECT_DIR"/.commitlintrc* &>/dev/null; then
+  COMMITLINT_NODE=$(command -v commitlint 2>/dev/null)
+  if [ -n "$COMMITLINT_NODE" ] && "$COMMITLINT_NODE" --version 2>&1 | grep -qE '^@commitlint|^[0-9]'; then
+    RESULT=$(cd "$PROJECT_DIR" && echo "$MSG" | "$COMMITLINT_NODE" 2>&1)
+    STATUS=$?
+    if [ $STATUS -ne 0 ]; then
+      echo "BLOCKED by commitlint (node global):" >&2
+      echo "$RESULT" >&2
+      exit 2
+    fi
+    exit 0
+  fi
+fi
+
+# --- Strategy 4: Fallback — basic conventional commit regex ---
 PATTERN='^(feat|fix|hotfix|refactor|perf|style|docs|test|build|ci|dx|deps|security|chore)(\(.+\))?(!)?: .+'
 
 if ! echo "$MSG" | grep -qE "$PATTERN"; then
