@@ -437,6 +437,11 @@ setup_claude_code() {
         safe_symlink "$DOTFILES_DIR/claude/hooks" "$HOME/.claude/hooks" "Claude Code hooks"
     fi
 
+    # Symlink scripts directory
+    if [ -d "$DOTFILES_DIR/claude/scripts" ]; then
+        safe_symlink "$DOTFILES_DIR/claude/scripts" "$HOME/.claude/scripts" "Claude Code scripts"
+    fi
+
     # Symlink statusline script
     if [ -f "$DOTFILES_DIR/claude/statusline.sh" ]; then
         safe_symlink "$DOTFILES_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh" "Claude Code statusline"

@@ -3,7 +3,7 @@ name: review-mr
 description: Review an existing merge request or pull request by ID. Fetches diff, analyzes changes, and provides structured code review with inline diff comments.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Write, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Task
+allowed-tools: Read, Write, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Bash(~/.claude/scripts/*), Task
 argument-hint: <MR/PR number>
 ---
 
@@ -181,29 +181,69 @@ Present all drafted comments to the user for approval before posting.
 
 ### Step 7: Post Inline Comments (GitLab)
 
-Comments are split into two channels based on intent:
+Use `~/.claude/scripts/gl-post-review.sh` to post all comments. The script handles 2-channel routing, bulk publish with failure recovery, and verdict actions.
 
-| Channel             | Labels                                                 | API             | Why                                          |
-|---------------------|--------------------------------------------------------|-----------------|----------------------------------------------|
-| **Direct comments** | `praise:`, `question:`, `thought:`, discussion replies | Discussions API | Conversational, immediate visibility         |
-| **Review notes**    | `issue:`, `suggestion:`, `nitpick:`, `chore:`          | Draft Notes API | Batched, atomic publish, single notification |
+#### Build Review JSON
 
-#### Auth Token
+Create a temporary JSON file with all review data using Python:
 
-Extract the token from glab's auth status:
-```bash
-glab auth status -t 2>&1 | awk '/Token/{print $NF}'
+```python
+import json, tempfile
+
+review_data = {
+    "gitlab_url": "<gitlab_url>",           # e.g. "https://gitlab.com"
+    "project_id": "<url_encoded_path>",      # e.g. "group%2Fproject"
+    "mr_iid": <mr_iid>,
+    "diff_refs": {
+        "base_sha": "<base_sha>",
+        "head_sha": "<head_sha>",
+        "start_sha": "<start_sha>"
+    },
+    "comments": [ ... ],                     # see channel assignment below
+    "verdict": "<verdict>",                  # "approve", "request_changes", "comment", "needs_discussion"
+    "issue_id": <issue_id>                   # primary issue ID, or omit if none
+}
+
+path = tempfile.mktemp(suffix=".json")
+with open(path, 'w') as f:
+    json.dump(review_data, f, indent=2)
+print(path)
 ```
 
-#### Why `curl` and not `glab api` CLI
+#### Channel Assignment
 
-`glab api -f` sends form data — nested objects like `position` do **not** serialize correctly. Always use `curl` with `Content-Type: application/json` and a proper JSON body for both APIs.
+Each comment object must specify a `channel` and the correct text field:
 
-> **MCP note:** `mcp__gitlab__glab_api` only returns pagination metadata (not the full API response), so you cannot verify note types or extract IDs. Use `curl` for posting where response verification matters.
+| Channel    | Labels                                  | Text field | Behavior                     |
+|------------|-----------------------------------------|------------|------------------------------|
+| `"direct"` | praise, question, thought               | `"body"`   | Immediate (Discussions API)  |
+| `"draft"`  | issue, suggestion, nitpick, chore       | `"note"`   | Batched (Draft Notes API)    |
+
+```json
+{
+    "channel": "direct",
+    "body": "💚 **praise**: Clean separation of concerns.",
+    "old_path": "src/auth.php",
+    "new_path": "src/auth.php",
+    "new_line": 42,
+    "old_line": null
+}
+```
+
+```json
+{
+    "channel": "draft",
+    "note": "🟠 **issue**: Off-by-one error.\n\n```suggestion:-0+0\nfor ($i = 0; $i <= count($items) - 1; $i++) {\n```",
+    "old_path": "src/user.php",
+    "new_path": "src/user.php",
+    "new_line": 15,
+    "old_line": null
+}
+```
 
 #### GitLab Suggestion Syntax
 
-To render the interactive **"Suggested change"** widget (with "Apply suggestion" button), use this markdown inside the comment body:
+To render the interactive **"Suggested change"** widget, use this markdown inside the comment body:
 
 ````
 ```suggestion:-N+M
@@ -226,127 +266,40 @@ If the comment is observational (no direct replacement), omit the suggestion blo
 
 #### Position Parameters
 
-The `position` object determines where the comment anchors on the diff:
-
 | Line type                  | Set                            | Description                     |
 |----------------------------|--------------------------------|---------------------------------|
 | **Added line** (green `+`) | `new_line` only                | Line exists only in new version |
 | **Removed line** (red `-`) | `old_line` only                | Line exists only in old version |
 | **Context line** (white)   | Both `old_line` AND `new_line` | Line exists in both versions    |
 
-Suggestions work on added and context lines. Avoid placing suggestions on removed-only lines.
+Suggestions work on added and context lines. Avoid placing suggestions on removed-only lines. Use `null` for line fields that should be omitted.
 
-#### Channel A: Direct Comments (Discussions API)
-
-For `praise:`, `question:`, `thought:`, and discussion replies. These appear immediately.
-
-**Endpoint:** `POST /projects/:id/merge_requests/:iid/discussions`
-
-```python
-payload = {
-    "body": "💚 praise: Clean separation of concerns here.",
-    "position": {
-        "position_type": "text",
-        "base_sha": "<base_sha>",
-        "head_sha": "<head_sha>",
-        "start_sha": "<start_sha>",
-        "old_path": "path/to/file.php",
-        "new_path": "path/to/file.php",
-        "new_line": 42
-    }
-}
-```
-
-#### Channel B: Review Notes (Draft Notes API)
-
-For `issue:`, `suggestion:`, `nitpick:`, `chore:`. These accumulate as pending drafts visible only to the author, then publish atomically.
-
-**Step 1 — Create draft notes** (one per comment):
-
-`POST /projects/:id/merge_requests/:iid/draft_notes`
-
-```python
-payload = {
-    "note": "🟠 issue: Off-by-one error.\n\n```suggestion:-0+0\nfor ($i = 0; $i <= count($items) - 1; $i++) {\n```",
-    "position": {
-        "base_sha": "<base_sha>",
-        "head_sha": "<head_sha>",
-        "start_sha": "<start_sha>",
-        "position_type": "text",
-        "old_path": "path/to/file.php",
-        "new_path": "path/to/file.php",
-        "new_line": 42
-    }
-}
-```
-
-> **Note:** The Draft Notes API uses `note` (not `body`) as the field name for the comment text.
-
-**Step 2 — Bulk publish all drafts** (submits the review as "Comment"):
+#### Run Posting Script
 
 ```bash
-curl -s -X POST \
-  -H "PRIVATE-TOKEN: $TOKEN" \
-  "https://gitlab.com/api/v4/projects/$PROJECT/merge_requests/$MR_IID/draft_notes/bulk_publish"
+~/.claude/scripts/gl-post-review.sh "$REVIEW_JSON"
 ```
 
-> **⚠️ Handling bulk_publish failures (CRITICAL — prevents duplicate comments)**
->
-> GitLab's `bulk_publish` may return HTTP 500 yet still publish all drafts server-side. **Never retry or fall back to individual publish without verifying draft state first.**
->
-> If `bulk_publish` returns a non-2xx status:
->
-> 1. **Re-fetch the draft notes list** to check actual state:
->    ```bash
->    curl -s -H "PRIVATE-TOKEN: $TOKEN" \
->      "$BASE_URL/draft_notes"
->    ```
-> 2. **If the list is empty** → bulk_publish succeeded despite the error. Continue to Step 3.
-> 3. **If drafts remain** → publish only the remaining drafts individually:
->    ```
->    PUT /projects/:id/merge_requests/:iid/draft_notes/:draft_note_id/publish
->    ```
-> 4. **After individual publish, verify again** — re-fetch the list to confirm all drafts are gone before proceeding.
+The script handles:
+1. Token extraction from `glab auth status`
+2. Channel A: POST direct comments via Discussions API
+3. Channel B: POST draft notes via Draft Notes API
+4. Bulk publish drafts (with failure recovery — re-fetch, individual publish, re-verify)
+5. Verdict: approve → `glab mr approve` + `development::done` labels; request_changes → `development::rejected` labels
 
-**Step 3 — Submit review verdict:**
+**Exit codes:** 0 = success, 1 = partial failure, 2 = total failure
 
-| Verdict             | API action                                       | Automated?     |
-|---------------------|--------------------------------------------------|----------------|
-| **Comment**         | `bulk_publish` (done in Step 2)                  | ✅ Automatic    |
-| **Approve**         | `POST /projects/:id/merge_requests/:iid/approve` | ✅ Automatic    |
-| **Request changes** | Not available via API, CLI, or MCP               | ⚠️ Manual only |
+Clean up the temp file after the script completes: `rm "$REVIEW_JSON"`
 
-Based on the review verdict from Step 5:
-- **Approve:** Run `glab mr approve <id>` after bulk publish. Label MR and related issue with `development::done`:
-  ```bash
-  glab mr update <id> --label "development::done"
-  glab issue update <issue_id> --label "development::done"
-  ```
-- **Request changes:** Not available via API/CLI/MCP (`reviewer_state` is internal to GitLab's web controller). Label MR and related issue with `development::rejected`, then provide the user with the form data to submit manually:
-  ```bash
-  glab mr update <id> --label "development::rejected"
-  glab issue update <issue_id> --label "development::rejected"
-  ```
-  > **Manual action required — "Submit your review" in GitLab UI:**
-  > 1. Click **"Your review"** button on the MR
-  > 2. Select: **Request changes**
-  > 3. Summary: `{paste the review summary from Step 5}`
-  > 4. Click **"Submit review"**
-- **Needs discussion / Comment:** No additional action needed after bulk publish
+**For "Request changes" verdict:** The script labels MR and issue with `development::rejected`. Provide the user with manual instructions:
 
-#### Posting script
+> **Manual action required — "Submit your review" in GitLab UI:**
+> 1. Click **"Your review"** button on the MR
+> 2. Select: **Request changes**
+> 3. Summary: `{paste the review summary from Step 5}`
+> 4. Click **"Submit review"**
 
-Write all payloads with Python for proper escaping, then POST with curl. Process in order:
-1. Post all direct comments (Channel A) first
-2. Create all draft notes (Channel B)
-3. Bulk publish drafts
-4. **If bulk publish fails** → re-fetch draft list; if empty, continue (it succeeded silently); if drafts remain, publish them individually, then re-fetch to confirm
-5. If verdict is "Approve" → run `glab mr approve <id>` + label MR and issue `development::done`
-6. If verdict is "Request changes" → label MR and issue `development::rejected` + notify user to submit manually in GitLab UI
-
-Report progress as `N/total OK` or `N/total FAIL` for each channel.
-
-#### Managing notes
+#### Managing Notes
 
 **Delete a draft note** (before publishing):
 ```

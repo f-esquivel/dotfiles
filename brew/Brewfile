@@ -21,6 +21,7 @@ brew "fastfetch"        # System information tool
 brew "fzf"              # Fuzzy finder
 brew "gh"               # GitHub CLI
 brew "git"              # Version control
+brew "jq"               # JSON processor
 brew "make"             # Build automation
 brew "mkcert"           # SSL certificate generation
 brew "nvm"              # Node version manager

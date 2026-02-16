@@ -3,7 +3,7 @@ name: re-review-mr
 description: Re-review a previously reviewed MR/PR. Reads review history, checks if previous comments were addressed, and reviews only new changes since last review round.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Task
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Bash(~/.claude/scripts/*), Task
 argument-hint: <MR/PR number>
 ---
 
@@ -156,19 +156,20 @@ Wait for user approval before posting.
 
 ### Step 9: Post Comments
 
-Follow the same posting procedure as `/review-mr`:
-- **GitLab:** Step 7 (2-channel: Discussions API for praise/question/thought, Draft Notes API for issue/suggestion/nitpick/chore, then bulk publish + verdict)
-- **GitHub:** Step 7b (Pull Request Review Comments API)
+#### GitLab
 
-> **⚠️ bulk_publish failure handling (CRITICAL — prevents duplicate comments)**
->
-> GitLab's `bulk_publish` may return HTTP 500 yet still publish all drafts server-side. **Never retry or fall back to individual publish without verifying draft state first.**
->
-> If `bulk_publish` returns a non-2xx status:
-> 1. **Re-fetch the draft notes list** to check actual state
-> 2. **If the list is empty** → bulk_publish succeeded despite the error. Continue to verdict.
-> 3. **If drafts remain** → publish only the remaining drafts individually via `PUT /draft_notes/:id/publish`
-> 4. **After individual publish, verify again** — re-fetch the list to confirm all drafts are gone before proceeding.
+Build the review JSON and run the posting script — same as `/review-mr` Step 7:
+
+1. Build a JSON file with **new comments only** (previous unresolved comments are NOT re-posted)
+2. Run `~/.claude/scripts/gl-post-review.sh "$REVIEW_JSON"`
+3. Clean up: `rm "$REVIEW_JSON"`
+4. If verdict is "request_changes", provide manual UI instructions (see `/review-mr` Step 7)
+
+> **Critical:** Only post NEW comments from Step 7. Previous comments marked as `⏳ persists` in the resolution table are tracked in the review history only — they MUST NOT be re-posted.
+
+#### GitHub
+
+Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Step 7b).
 
 ### Step 10: Update Review History
 
