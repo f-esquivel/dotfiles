@@ -67,20 +67,31 @@ If any answer is "no" → split the commit.
 
 Before proceeding, silently load project-specific rules (do NOT ask user):
 
-1. **Commitlint config** (enforced rules):
-   - `commitlint.config.js`, `.commitlintrc.js`, `.commitlintrc.json`
-   - Extract: allowed types, scope rules, length constraints
+1. **Find commitlint config** — check in order (stop at first match):
+   - Node.js: `commitlint.config.js`, `commitlint.config.ts`, `.commitlintrc.js`, `.commitlintrc.json`, `.commitlintrc.yml`
+   - Go: `.commitlint.yaml`, `.commitlint.yml`
 
-2. **Project docs** (conventions):
+2. **Read the config file** and extract these rules verbatim:
+   - **`type-enum`** → allowed types list (ONLY use these types, ignore defaults)
+   - **`scope-enum`** → allowed scopes list (ONLY use these scopes, ignore path-based detection)
+   - **`scope-empty`** → whether scope is required (`never` = required)
+   - **`subject-case`** → casing rule (typically `lower-case`)
+   - **`subject-max-length`** / **`header-max-length`** → length constraints
+
+3. **Read project docs** for additional conventions:
+   - `CLAUDE.md` → git conventions
    - `docs/WORKFLOWS.md` → "Git Commit" or "Commit Guidelines" section
    - `CONTRIBUTING.md` → commit conventions
-   - `CLAUDE.md` → git conventions
 
-3. **Apply project rules over defaults:**
-   - Project types → override default types
-   - Project scopes → override scope detection
-   - Project constraints → override default constraints
-   - No project rules found → use defaults below
+4. **Apply project rules strictly:**
+   - If `scope-enum` exists → **ONLY** use scopes from the list. NEVER infer scopes from file paths
+   - If `type-enum` exists → **ONLY** use types from the list
+   - If `subject-case` is `lower-case` → **entire description must be lowercase**, including acronyms (write `ci` not `CI`, `api` not `API`, `mr` not `MR`)
+   - No config found → use defaults below (Types, Scope Detection, Constraints)
+
+5. **Detect commitlint engine** to avoid syntax incompatibilities:
+   - Go commitlint (`.commitlint.yaml`) → **do NOT use `!` breaking change indicator** in the header (use `BREAKING CHANGE:` footer instead). The Go parser does not support `type(scope)!:` syntax
+   - Node.js commitlint → `!` syntax is safe to use
 
 ### Step 1: Stage Files
 
@@ -99,10 +110,10 @@ Before proceeding, silently load project-specific rules (do NOT ask user):
 
 1. Run `git diff --cached` to analyze staged changes
 2. Auto-generate the best commit message:
-   - **Type:** Infer from change nature (see Types)
-   - **Scope:** Infer from file paths (see Scope Detection)
-   - **Description:** Concise, imperative mood, max 75 chars
-   - **Breaking:** Add exclamation mark after scope for breaking changes
+   - **Type:** Use project `type-enum` if loaded (Step 0), otherwise infer from change nature (see Types)
+   - **Scope:** Use project `scope-enum` if loaded (Step 0), otherwise infer from file paths (see Scope Detection). Pick the closest matching scope from the allowed list — never invent scopes not in the list
+   - **Description:** Concise, imperative mood. Apply `subject-case` rule from Step 0 (default: lowercase). **Never use uppercase acronyms** (CI, MR, API, URL, etc.) when the project enforces lowercase — write them in lowercase instead
+   - **Breaking:** Use `BREAKING CHANGE:` footer for Go commitlint projects (Step 0). Use `!` after scope only when Node.js commitlint or no config
 3. **Body decision:** Auto-include body ONLY when:
    - Breaking changes (include BREAKING CHANGE footer)
    - Database migrations
@@ -198,13 +209,16 @@ type(scope): description
 
 ## Constraints
 
+These are defaults — project commitlint config (Step 0) overrides them.
+
 - **Description:** Max 75 characters
 - **Header (full line):** Max 100 characters
 - **Body lines:** Max 100 characters
 - **Mood:** Imperative ("add" not "added")
 - **Header ending:** No period
-- **Case:** Lowercase after colon
+- **Case:** Lowercase after colon. When project enforces `subject-case: lower-case`, ALL words must be lowercase — no uppercase acronyms (`ci` not `CI`, `api` not `API`, `mr` not `MR`, `url` not `URL`)
 - **Spacing:** Blank line between header and body
+- **Scopes:** When project defines `scope-enum`, only use listed scopes — never invent new ones
 
 ---
 
