@@ -46,6 +46,18 @@ Bad:
 | `scripts/update.sh` | Update all components |
 ```
 
+## MCP Tools
+
+### Context7
+
+Always use Context7 MCP when needing library/API documentation, code generation, setup or configuration steps — no explicit request required.
+
+* **Prefer Context7 over WebSearch/WebFetch** for library and API docs — returns structured, version-aware content without scraping
+* **Skip `resolve-library-id`** when you already know the Context7 library ID (e.g. `/vercel/next.js`, `/mongodb/docs`) — call `query-docs` directly
+* **Version-aware queries** — include specific version numbers in the query so Context7 returns matching documentation
+* **Trigger keyword** — append `use context7` to any prompt as a lightweight way to activate doc retrieval
+* **Scope** — use Context7 for library/framework docs; use WebSearch for general info, blog posts, or non-library topics
+
 ## Git Platform Detection
 
 Detect platform via: `git remote get-url origin`
