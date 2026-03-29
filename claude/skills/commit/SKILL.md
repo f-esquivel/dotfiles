@@ -61,6 +61,25 @@ If any answer is "no" → split the commit.
 
 ---
 
+## Multi-Session Awareness
+
+> Multiple Claude Code sessions may work on the same project simultaneously, modifying overlapping files. The commit skill must stage ONLY changes belonging to the current session.
+
+### Principles
+
+- **Session context is your guide** — use the conversation history to know which files and changes were produced in this session
+- **When in doubt, leave it out** — if you cannot confidently attribute a change to this session, do NOT stage it
+- **Preserve others' work** — unstaged changes from other sessions must remain untouched in the working tree
+
+### Identifying Session-Relevant Changes
+
+- Files you created, modified, or discussed during this conversation → **this session**
+- Changes that align with the task/goal of this conversation → **likely this session**
+- Changes with no connection to this session's work → **skip**
+- Ambiguous changes → ask the user before staging
+
+---
+
 ## Instructions
 
 ### Step 0: Load Project Conventions (Silent)
@@ -93,12 +112,32 @@ Before proceeding, silently load project-specific rules (do NOT ask user):
    - Go commitlint (`.commitlint.yaml`) → **do NOT use `!` breaking change indicator** in the header (use `BREAKING CHANGE:` footer instead). The Go parser does not support `type(scope)!:` syntax
    - Node.js commitlint → `!` syntax is safe to use
 
-### Step 1: Stage Files
+### Step 1: Review & Stage Files (Session-Aware)
 
 1. Run `git status --porcelain` and `git diff --cached --name-only`
-2. **If nothing staged:** Auto-run `git add -u` (tracked files only)
-3. **If `$ARGUMENTS` provided:** Filter to files matching the argument
-4. If still nothing to commit, inform user and stop
+2. Run `git diff` to review all unstaged changes
+3. **If changes are already staged:** verify all staged changes are session-relevant. Unstage anything unrelated with `git reset HEAD -- <file>`
+4. **Cross-reference changes with session context** — classify each changed file as:
+   - **Session-owned:** all changes are from this session → `git add <file>`
+   - **Mixed:** some hunks from this session, some not → use hunk-level staging (see below)
+   - **Unrelated:** no changes from this session → skip entirely, do NOT stage
+5. **If `$ARGUMENTS` provided:** further filter to files matching the argument
+6. If nothing session-relevant to commit, inform user and stop
+
+#### Hunk-Level Staging (Mixed Files)
+
+When a file contains changes from both this session and other sessions:
+
+1. Run `git diff -- <file>` to see all hunks
+2. Identify which hunks belong to this session's work
+3. Construct a patch containing ONLY session-relevant hunks (preserve diff file headers and hunk context lines)
+4. Apply to staging area:
+   ```bash
+   git apply --cached <<'PATCH'
+   <filtered patch content>
+   PATCH
+   ```
+5. Verify with `git diff --cached -- <file>` that only intended changes were staged
 
 ### Step 2: SRP Check
 
