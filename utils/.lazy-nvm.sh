@@ -1,5 +1,5 @@
 # Single source of truth for lazy-loaded commands
-NVM_LAZY_COMMANDS=(nvm npm node npx nest lerna yarn)
+NVM_LAZY_COMMANDS=(nvm npm node npx nest lerna yarn pnpm pnpx)
 
 function lazy_nvm {
   # Unset all wrapper functions (only if they exist)
@@ -7,7 +7,7 @@ function lazy_nvm {
   # shell environment snapshots (like Claude Code uses) may not capture the array,
   # which would cause the unset loop to do nothing and result in infinite recursion.
   local cmd
-  for cmd in nvm npm node npx nest lerna yarn; do
+  for cmd in nvm npm node npx nest lerna yarn pnpm pnpx; do
     if typeset -f "$cmd" > /dev/null; then
       unset -f "$cmd"
     fi
