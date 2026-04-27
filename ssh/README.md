@@ -61,4 +61,3 @@ Host myserver
 
 - **gitlab.com** - GitLab via alternate port (443)
 - **github.com** - Personal GitHub account
-- **dgh** - Work GitHub account (designli)

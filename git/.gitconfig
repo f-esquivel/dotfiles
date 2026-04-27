@@ -72,5 +72,5 @@
 [includeIf "gitdir:~/Documents/Dev/Projects/ese/"]
 	path = ~/.dotfiles/git/.gitconfig.ese
 
-[includeIf "gitdir:~/Documents/Dev/Projects/designli/"]
-	path = ~/.dotfiles/git/.gitconfig.designli
+[coderabbit]
+	machineId = cli/4d14120caef34ae0bc10c6fed61bfca7

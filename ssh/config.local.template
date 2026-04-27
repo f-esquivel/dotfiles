@@ -14,10 +14,6 @@ Host github.com
 Host gitlab.com
   IdentityFile ~/.ssh/id_rsa
 
-# Work GitHub (designli)
-Host dgh
-  IdentityFile ~/.ssh/id_designli_gh
-
 # -----------------------------------------------------------------------------
 # Add any machine-specific hosts below
 # -----------------------------------------------------------------------------

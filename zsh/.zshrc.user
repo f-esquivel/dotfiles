@@ -64,7 +64,6 @@ export CCUSAGE_TIMEZONE="America/El_Salvador"
 # Aliases
 # -----------------------------------------------------------------------------
 
-alias cdd="cd $HOME/Documents/Dev/Projects/designli/"
 alias cde="cd $HOME/Documents/Dev/Projects/ese/"
 alias cdcot="CD $DOTFILES_DIR"
 alias gcpsql="$DOTFILES_DIR/utils/gcp-sql-proxy.sh"

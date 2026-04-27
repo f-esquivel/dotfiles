@@ -31,7 +31,6 @@ if [ -n "$CURRENT_DIR" ]; then
     case "$GIT_EMAIL" in
         *@outlook.com) WORKSPACE="personal" ;;
         *@ese.plus) WORKSPACE="ese" ;;
-        *@designli.co) WORKSPACE="designli" ;;
     esac
 fi
 
