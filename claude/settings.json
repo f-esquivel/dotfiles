@@ -1,7 +1,8 @@
 {
   "cleanupPeriodDays": 30,
   "env": {
-    "ENABLE_TOOL_SEARCH": "true"
+    "ENABLE_TOOL_SEARCH": "true",
+    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"
   },
   "includeCoAuthoredBy": false,
   "permissions": {
@@ -12,7 +13,6 @@
       "Bash(git commit:*)"
     ]
   },
-  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -34,9 +34,12 @@
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true
+    "gopls-lsp@claude-plugins-official": true,
+    "coderabbit@claude-plugins-official": true
   },
-  "alwaysThinkingEnabled": true,
-  "gitAttribution": false,
-  "effortLevel": "medium"
+  "effortLevel": "medium",
+  "autoMemoryEnabled": false,
+  "skipDangerousModePermissionPrompt": true,
+  "voiceEnabled": false,
+  "gitAttribution": false
 }
