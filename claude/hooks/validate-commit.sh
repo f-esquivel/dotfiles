@@ -4,6 +4,11 @@
 # Falls back to basic conventional commit regex if no commitlint found
 # Exit 0 = allow, Exit 2 = block with message
 
+# Prepend trusted system/Homebrew paths so `command -v` resolves binaries from
+# known locations first, mitigating PATH-injection if the hook is invoked with
+# an attacker-controlled PATH. User PATH still appended as a fallback.
+PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 
