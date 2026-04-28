@@ -352,6 +352,8 @@ brew update && brew upgrade
 Manually add the package to `brew/Brewfile` in the correct category with an inline comment.
 Do **not** use `brew bundle dump --force` — it destroys the organized category structure.
 
+If you're using Claude Code, the project-local `/brewfile-organize` skill (`.claude/commands/brewfile-organize.md`) helps re-organize a freshly dumped Brewfile back into the canonical category order.
+
 ### Update Zim Plugins
 
 ```bash
@@ -396,6 +398,45 @@ brew doctor
 
 # Update Homebrew
 brew update
+```
+
+### Restoring from Backup
+
+`install.sh` saves any file it would overwrite into a timestamped directory under `~/.dotfiles_backup/`. To restore a previous config:
+
+```bash
+ls ~/.dotfiles_backup/
+cp ~/.dotfiles_backup/<timestamp>/<file> <original-location>
+```
+
+### Partial Install (install.sh failed midway)
+
+`install.sh` is idempotent — re-running it picks up where it left off. Symlinks already in place are detected and skipped, so it's safe to re-run after fixing the underlying issue (e.g. missing tool, network failure).
+
+### NVM Commands Not Found
+
+NVM is **lazy-loaded** — the `nvm`, `node`, `npm`, `yarn`, `pnpm`, etc. commands are wrapper functions that load NVM on first invocation. If a command isn't recognized:
+
+```bash
+# Verify NVM is installed
+ls ~/.nvm/nvm.sh
+
+# Force-load NVM in the current shell
+source ~/.nvm/nvm.sh
+
+# Reload shell config
+exec zsh
+```
+
+If `node` resolves to a system binary instead of an NVM-managed one, ensure `~/.zshrc.user` is sourced (it's what registers the lazy wrappers via `utils/.lazy-nvm.sh`).
+
+### Verify All Symlinks
+
+```bash
+# Check that key symlinks resolve to the dotfiles repo
+for f in ~/.zshrc ~/.zprofile ~/.gitconfig ~/.ssh/config ~/.claude/settings.json; do
+    printf '%-30s -> %s\n' "$f" "$(readlink "$f" 2>/dev/null || echo 'NOT A SYMLINK')"
+done
 ```
 
 ## License

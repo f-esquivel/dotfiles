@@ -2,6 +2,26 @@
 
 This guide covers installing your dotfiles regardless of where you clone the repository.
 
+## What `install.sh` Does
+
+Running `./install.sh` performs (in order):
+
+1. Installs Homebrew if missing
+2. Installs Brewfile packages (`brew bundle install`)
+3. Sets up NVM (lazy-loaded)
+4. Symlinks Zsh config (`.zshrc`, `.zshrc.user`)
+5. Symlinks SSH config and creates `config.local` from template if missing
+6. Symlinks Git config and context templates
+7. Symlinks PHP config to the active Homebrew PHP install
+8. Installs Composer via the official PHAR into `~/.local/bin/composer` (idempotent — skips if already present)
+9. Symlinks utility files (`.hushlogin`, `.npmrc`)
+10. Installs Husky helpers
+11. Symlinks Ghostty terminal config
+12. Symlinks Claude Code config (per-file, see `CLAUDE.md`)
+13. Sets up JetBrains Toolbox settings
+
+Use `--dry-run` to preview without making changes.
+
 ## Flexible Repository Location
 
 Your dotfiles work from any directory name:

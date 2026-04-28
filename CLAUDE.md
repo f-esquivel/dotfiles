@@ -36,14 +36,19 @@ Suffix determines visibility and tracking:
 
 ### Symlink Strategy
 
-`install.sh` symlinks config files from this repo into `$HOME` so changes here propagate immediately:
+`install.sh` symlinks config files from this repo into `$HOME` so changes here propagate immediately. Note that `~/.claude/` is **not** a single directory symlink — individual files and subdirectories are linked so that runtime data Claude Code writes into `~/.claude/` (projects, transcripts, etc.) stays out of the repo.
 
-| Source                    | Target          |
-|---------------------------|-----------------|
-| `dotfiles/zsh/.zshrc`     | `~/.zshrc`      |
-| `dotfiles/git/.gitconfig` | `~/.gitconfig`  |
-| `dotfiles/ssh/config`     | `~/.ssh/config` |
-| `dotfiles/claude/`        | `~/.claude/`    |
+| Source                          | Target                  |
+|---------------------------------|-------------------------|
+| `dotfiles/zsh/.zshrc`           | `~/.zshrc`              |
+| `dotfiles/git/.gitconfig`       | `~/.gitconfig`          |
+| `dotfiles/ssh/config`           | `~/.ssh/config`         |
+| `dotfiles/claude/settings.json` | `~/.claude/settings.json` |
+| `dotfiles/claude/CLAUDE.md`     | `~/.claude/CLAUDE.md`   |
+| `dotfiles/claude/skills/`       | `~/.claude/skills`      |
+| `dotfiles/claude/hooks/`        | `~/.claude/hooks`       |
+| `dotfiles/claude/scripts/`      | `~/.claude/scripts`     |
+| `dotfiles/claude/statusline.sh` | `~/.claude/statusline.sh` |
 
 ### Environment Variable
 
@@ -137,3 +142,7 @@ Zsh files load in this order — each layer adds to the previous:
 4. `.zshrc.secrets` — API keys and tokens (git-ignored)
 
 NVM is lazy-loaded via `utils/.lazy-nvm.sh` to avoid ~2s shell startup penalty.
+
+### Zim Auto-Bootstrap
+
+On first shell start, `.zshrc` downloads `zimfw.zsh` from GitHub if missing, then runs `zimfw init -q` to install modules listed in `.zimrc`. The Zim version is **pinned** (see `ZIM_VERSION` in `.zshrc`) — bump it deliberately after reviewing the changelog rather than tracking `latest`.
