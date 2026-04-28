@@ -11,46 +11,16 @@
 #   ./php-setup.sh --uninstall    # Remove symlinks
 # =============================================================================
 
-set -e
+set -eo pipefail
 
-# ANSI color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/common.sh"
 
-# Emojis
-INFO="ℹ️"
-SUCCESS="✅"
-WARNING="⚠️"
-ERROR="❌"
+PHP_CONF_DIR="$DOTFILES_DIR/php/conf.d"
 
 # Configuration
 DRY_RUN=false
 UNINSTALL=false
-
-# Determine dotfiles directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
-PHP_CONF_DIR="$DOTFILES_DIR/php/conf.d"
-
-# Helper functions
-info() {
-    echo -e "${BLUE}${INFO} $1${NC}"
-}
-
-success() {
-    echo -e "${GREEN}${SUCCESS} $1${NC}"
-}
-
-warn() {
-    echo -e "${YELLOW}${WARNING} $1${NC}"
-}
-
-error() {
-    echo -e "${RED}${ERROR} $1${NC}"
-}
 
 # Parse command line arguments
 for arg in "$@"; do

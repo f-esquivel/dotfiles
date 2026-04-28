@@ -13,42 +13,12 @@
 #   ./php-extensions.sh --help           # Show help
 # =============================================================================
 
-set -e
+set -eo pipefail
 
-# ANSI color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Emojis
-INFO="ℹ️"
-SUCCESS="✅"
-WARNING="⚠️"
-ERROR="❌"
-
-# Determine dotfiles directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/../lib/common.sh"
+
 EXTENSIONS_FILE="$DOTFILES_DIR/php/extensions.list"
-
-# Helper functions
-info() {
-    echo -e "${BLUE}${INFO} $1${NC}"
-}
-
-success() {
-    echo -e "${GREEN}${SUCCESS} $1${NC}"
-}
-
-warn() {
-    echo -e "${YELLOW}${WARNING} $1${NC}"
-}
-
-error() {
-    echo -e "${RED}${ERROR} $1${NC}"
-}
 
 show_help() {
     cat << EOF

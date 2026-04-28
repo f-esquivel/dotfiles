@@ -17,24 +17,14 @@
 
 set -euo pipefail
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-info()    { echo -e "${BLUE}ℹ  $1${NC}"; }
-success() { echo -e "${GREEN}✔  $1${NC}"; }
-warn()    { echo -e "${YELLOW}⚠  $1${NC}"; }
-error()   { echo -e "${RED}✖  $1${NC}" >&2; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 # -----------------------------------------------------------------------------
 # Validate dependencies & env
 # -----------------------------------------------------------------------------
-for cmd in curl jq; do
-  command -v "$cmd" &>/dev/null || { error "$cmd is required but not installed"; exit 1; }
-done
+require_command curl
+require_command jq
 
 REQUIRED_VARS=(KC_BASE_URL KC_REALM KC_CLIENT_ID KC_ADMIN_CLIENT_ID KC_ADMIN_CLIENT_SECRET)
 for var in "${REQUIRED_VARS[@]}"; do
