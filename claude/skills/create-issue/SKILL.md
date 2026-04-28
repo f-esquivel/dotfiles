@@ -98,6 +98,35 @@ gh issue create \
 - Display the issue URL
 - Ask if user wants to add to a milestone or link to other issues
 
+### Step 6: Offer Branch Checkout
+
+Ask the user if they want to check out a branch to start the implementation.
+
+If yes:
+
+1. **Determine branch type** from the issue nature (conventional branching):
+   - `feature/` — new feature or enhancement
+   - `fix/` — bug fix
+   - `hotfix/` — critical production fix
+   - `chore/` — maintenance, deps, tooling
+   - `refactor/` — code restructuring without behavior change
+   - `docs/` — documentation only
+   - `test/` — test-only changes
+
+2. **Build the branch name**:
+   - **GitLab:** `<type>/gl-<issue-id>-<description-slug>`
+   - **GitHub:** `<type>/<description-slug>` (omit the issue id)
+
+   The `<description-slug>` is a kebab-cased, lowercased, ASCII-only summary of the issue title (drop articles/punctuation, keep it short — ~3-6 words).
+
+3. **Confirm the proposed branch name** with the user, then create it from the current base:
+
+   ```bash
+   git checkout -b <branch-name>
+   ```
+
+   If unsure which base branch to branch from (e.g., `develop` vs `main`), ask the user.
+
 ## GitLab Defaults
 
 ### Language
