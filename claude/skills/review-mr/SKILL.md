@@ -274,6 +274,10 @@ If the comment is observational (no direct replacement), omit the suggestion blo
 
 Suggestions work on added and context lines. Avoid placing suggestions on removed-only lines. Use `null` for line fields that should be omitted.
 
+**CRITICAL — Context line positioning:** Comments on context lines (unchanged lines visible in the diff hunk) **MUST** set both `old_line` and `new_line`. Setting only `new_line` with `old_line: null` will silently fail — the draft note is created but cannot be published. To find the correct `old_line` for a context line, parse the diff hunk header (`@@ -old_start,old_count +new_start,new_count @@`) and count lines, skipping `+` lines for the old counter and `-` lines for the new counter. If a comment targets a line **outside any diff hunk**, it cannot be placed as a DiffNote — post it as a general MR discussion instead.
+
+**Line number verification:** Always cross-reference the target line number against the actual diff output. The line number in the source file may differ from the line number in the diff's new-side due to additions/removals in earlier hunks.
+
 #### Run Posting Script
 
 ```bash
@@ -290,6 +294,35 @@ The script handles:
 **Exit codes:** 0 = success, 1 = partial failure, 2 = total failure
 
 Clean up the temp file after the script completes: `rm "$REVIEW_JSON"`
+
+#### Post-Publish Verification
+
+After the script completes (especially if it reported warnings or non-zero exit), verify that no duplicate comments were created:
+
+```bash
+glab api "projects/<path>/merge_requests/<iid>/discussions" | python3 -c "
+import sys, json
+discussions = json.load(sys.stdin)
+seen = {}
+dupes = []
+for d in discussions:
+    for n in d.get('notes', []):
+        if n.get('author', {}).get('username') == '<your_username>' and n.get('type') == 'DiffNote':
+            key = (n.get('position', {}).get('new_path'), n.get('position', {}).get('new_line'), n['body'][:80])
+            if key in seen:
+                dupes.append((d['id'], n['id'], key))
+            else:
+                seen[key] = (d['id'], n['id'])
+print(f'{len(dupes)} duplicate(s) found')
+for d_id, n_id, key in dupes:
+    print(f'  DELETE discussion={d_id} note={n_id} file={key[0]}:{key[1]}')
+"
+```
+
+If duplicates are found, delete them:
+```bash
+glab api --method DELETE "projects/<path>/merge_requests/<iid>/discussions/<discussion_id>/notes/<note_id>"
+```
 
 **For "Request changes" verdict:** The script labels MR and issue with `development::rejected`. Provide the user with manual instructions:
 
