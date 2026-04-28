@@ -65,7 +65,7 @@ export CCUSAGE_TIMEZONE="America/El_Salvador"
 # -----------------------------------------------------------------------------
 
 alias cde="cd $HOME/Documents/Dev/Projects/ese/"
-alias cdcot="CD $DOTFILES_DIR"
+alias cdcot="cd $DOTFILES_DIR"
 alias gcpsql="$DOTFILES_DIR/utils/gcp-sql-proxy.sh"
 alias nr="npm run"
 alias pas="php artisan serve"
