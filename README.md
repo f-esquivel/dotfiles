@@ -38,6 +38,7 @@ Options:
   --skip-backup     Don't create backups (not recommended)
   --skip-brew       Skip Homebrew install and Brewfile bundle
   --skip-php        Skip PHP config symlink and Composer install
+  --claude-only     Only run Claude Code setup (skips everything else)
   --help, -h        Show help message
 ```
 

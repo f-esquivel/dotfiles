@@ -19,6 +19,7 @@ INTERACTIVE=false
 SKIP_BACKUP=false
 SKIP_BREW=false
 SKIP_PHP=false
+CLAUDE_ONLY=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_PHP=true
             shift
             ;;
+        --claude-only)
+            CLAUDE_ONLY=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -52,6 +57,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-backup     Don't create backups of existing files"
             echo "  --skip-brew       Skip Homebrew install and Brewfile bundle"
             echo "  --skip-php        Skip PHP config symlink and Composer install"
+            echo "  --claude-only     Only run Claude Code setup (skips everything else)"
             echo "  --help, -h        Show this help message"
             exit 0
             ;;
@@ -645,6 +651,36 @@ main() {
 
     # Change to dotfiles directory
     cd "$DOTFILES_DIR" || exit 1
+
+    # Claude-only mode: skip everything else and just link Claude Code config
+    if [ "$CLAUDE_ONLY" = true ]; then
+        info "Claude-only mode (--claude-only): skipping all other steps"
+        echo ""
+
+        setup_claude_code
+        echo ""
+
+        if [ "$DRY_RUN" = true ]; then
+            echo "╔═══════════════════════════════════════╗"
+            echo "║   Dry Run Complete!                   ║"
+            echo "╚═══════════════════════════════════════╝"
+            echo ""
+            info "This was a dry run. No changes were made."
+        else
+            echo "╔═══════════════════════════════════════╗"
+            echo "║   Claude Code Setup Complete! 🎉      ║"
+            echo "╚═══════════════════════════════════════╝"
+            echo ""
+            success "Claude Code configuration linked"
+
+            if [ "$SKIP_BACKUP" = false ] && [ -d "$BACKUP_DIR" ]; then
+                echo ""
+                info "Backups saved to: $BACKUP_DIR"
+            fi
+        fi
+        echo ""
+        return 0
+    fi
 
     # Run installation steps
     if [ "$SKIP_BREW" = false ]; then
