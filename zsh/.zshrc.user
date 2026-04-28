@@ -81,5 +81,10 @@ alias cc="claude --dangerously-skip-permissions"
 # Secrets (API Keys, Tokens)
 # -----------------------------------------------------------------------------
 
-# Load secrets from separate file (not tracked in git)
-[ -s "$DOTFILES_DIR/zsh/.zshrc.secrets" ] && source "$DOTFILES_DIR/zsh/.zshrc.secrets"
+# Load secrets from separate file (not tracked in git).
+# Surface a warning if the file exists but fails to source, so a syntax error
+# or partial write doesn't silently drop API keys/tokens from the env.
+if [ -s "$DOTFILES_DIR/zsh/.zshrc.secrets" ]; then
+    source "$DOTFILES_DIR/zsh/.zshrc.secrets" || \
+        echo "warning: failed to source .zshrc.secrets — env may be incomplete" >&2
+fi

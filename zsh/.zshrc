@@ -94,14 +94,18 @@ ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets)
 # ------------------
 
 ZIM_HOME=${ZDOTDIR:-${HOME}}/.zim
+# Pinned Zim version — bump deliberately rather than tracking `latest`, so a
+# compromised or breaking upstream release can't silently land on first shell
+# start. Update the tag below after reviewing the Zim changelog.
+ZIM_VERSION="v1.20.0"
 # Download zimfw plugin manager if missing.
 if [[ ! -e ${ZIM_HOME}/zimfw.zsh ]]; then
   if (( ${+commands[curl]} )); then
     curl -fsSL --create-dirs -o ${ZIM_HOME}/zimfw.zsh \
-        https://github.com/zimfw/zimfw/releases/latest/download/zimfw.zsh
+        https://github.com/zimfw/zimfw/releases/download/${ZIM_VERSION}/zimfw.zsh
   else
     mkdir -p ${ZIM_HOME} && wget -nv -O ${ZIM_HOME}/zimfw.zsh \
-        https://github.com/zimfw/zimfw/releases/latest/download/zimfw.zsh
+        https://github.com/zimfw/zimfw/releases/download/${ZIM_VERSION}/zimfw.zsh
   fi
 fi
 # Install missing modules, and update ${ZIM_HOME}/init.zsh if missing or outdated.
