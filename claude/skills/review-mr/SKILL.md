@@ -48,15 +48,13 @@ If no conventions found → proceed with the built-in defaults below.
 1. Fetch MR/PR metadata: `glab mr view <id>` or `gh pr view <id>`
 2. Fetch the diff: `glab mr diff <id>` or `gh pr diff <id>`
 3. Read changed files for full context — now on the correct branch
-4. **GitLab:** Fetch `diff_refs` for later use when posting inline comments:
+4. **GitLab:** Fetch `diff_refs` for later use when posting inline comments via the helper script (resolves project from git remote, validates SHAs, fails loud on errors):
    ```bash
-   glab api "projects/<url-encoded-path>/merge_requests/<iid>" | python3 -c "
-   import sys, json; mr = json.load(sys.stdin); refs = mr.get('diff_refs', {})
-   print('base_sha:', refs.get('base_sha'))
-   print('head_sha:', refs.get('head_sha'))
-   print('start_sha:', refs.get('start_sha'))
-   "
+   eval "$(~/.claude/scripts/gl-mr-diff-refs.sh <iid>)"
+   # Exports: BASE_SHA, HEAD_SHA, START_SHA
    ```
+   For machine-readable output: `~/.claude/scripts/gl-mr-diff-refs.sh <iid> --format=json`.
+   Exit codes: `0` ok, `1` bad usage, `2` glab call failed, `3` response missing/invalid `diff_refs`.
 
 ### Step 4: Fetch Related Issues
 

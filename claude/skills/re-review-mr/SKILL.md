@@ -64,15 +64,12 @@ Same as `/review-mr` Step 1 — search for project review guidelines, MR/PR temp
    - GitLab: `glab mr checkout $ARGUMENTS`
    - GitHub: `gh pr checkout $ARGUMENTS`
 3. Fetch current MR/PR metadata: `glab mr view $ARGUMENTS` or `gh pr view $ARGUMENTS`
-4. **GitLab:** Fetch current `diff_refs`:
+4. **GitLab:** Fetch current `diff_refs` via the helper (resolves project from git remote, validates SHAs):
    ```bash
-   glab api "projects/<url-encoded-path>/merge_requests/<iid>" | python3 -c "
-   import sys, json; mr = json.load(sys.stdin); refs = mr.get('diff_refs', {})
-   print('base_sha:', refs.get('base_sha'))
-   print('head_sha:', refs.get('head_sha'))
-   print('start_sha:', refs.get('start_sha'))
-   "
+   eval "$(~/.claude/scripts/gl-mr-diff-refs.sh "$ARGUMENTS")"
+   # Exports: BASE_SHA, HEAD_SHA, START_SHA
    ```
+   For JSON output: `~/.claude/scripts/gl-mr-diff-refs.sh "$ARGUMENTS" --format=json`.
 
 ### Step 4: Compute Delta Diff
 
