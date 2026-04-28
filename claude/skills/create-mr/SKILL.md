@@ -74,7 +74,18 @@ Description:
 
 **Wait for user approval before proceeding.**
 
-### Step 4: Create MR/PR (only after approval)
+### Step 4: Verify Branch Is Pushed (after approval)
+
+After the user approves the draft, assume the branch is already pushed to the remote. Double-check with:
+
+```bash
+git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null && git rev-list --count @{u}..HEAD
+```
+
+- If the upstream exists and the count is `0` → branch is pushed, proceed to Step 5.
+- If the upstream is missing OR the count is `> 0` → **stop** and tell the user they need to push the branch (and any unpushed commits) before the MR/PR can be created. Do **not** attempt to push (`git push` is globally blocked).
+
+### Step 5: Create MR/PR
 
 For GitLab:
 ```bash
@@ -86,7 +97,7 @@ For GitHub:
 gh pr create --title "<title>" --body "<description>" --base <target> --label "<labels>" --assignee "@me" --reviewer "<reviewers>"
 ```
 
-### Step 5: Post-Creation
+### Step 6: Post-Creation
 
 - Display the MR/PR URL
 
