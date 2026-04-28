@@ -48,9 +48,10 @@ brew "redis", restart_service: :changed         # In-memory data store
 # PHP & Composer
 # -----------------------------------------------------------------------------
 
-brew "composer"                            # PHP dependency manager
 brew "imagemagick"                         # Image manipulation library (required for imagick PHP extension)
 brew "php@8.2", restart_service: :changed, link: true
+# Composer is installed via PHAR in install.sh (setup_composer) to avoid
+# pulling in unversioned `php` as a dependency, which conflicts with php@8.2.
 brew "pkgconf"                             # Package compiler helper
 brew "zlib"                                # Compression library
 

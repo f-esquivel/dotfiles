@@ -328,6 +328,47 @@ setup_php() {
 # 8. Setup Utility Files
 # =============================================================================
 
+setup_composer() {
+    info "Setting up Composer (PHAR install)..."
+
+    if ! command -v php &> /dev/null; then
+        warn "PHP not installed. Skipping Composer install."
+        return 0
+    fi
+
+    local target_dir="$HOME/.local/bin"
+    local target="$target_dir/composer"
+
+    if [ -x "$target" ]; then
+        info "Composer already installed at $target"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would install Composer PHAR to $target"
+        return 0
+    fi
+
+    mkdir -p "$target_dir"
+
+    local tmp
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' RETURN
+
+    local expected actual
+    expected="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
+    php -r "copy('https://getcomposer.org/installer', '$tmp/composer-setup.php');"
+    actual="$(php -r "echo hash_file('sha384', '$tmp/composer-setup.php');")"
+
+    if [ "$expected" != "$actual" ]; then
+        error "Composer installer checksum mismatch — aborting"
+        return 1
+    fi
+
+    php "$tmp/composer-setup.php" --quiet --install-dir="$target_dir" --filename=composer
+    success "Composer installed at $target"
+}
+
 setup_utils() {
     info "Setting up utility files..."
 
@@ -607,8 +648,8 @@ main() {
     install_homebrew
     echo ""
 
-    #install_brew_packages
-    #echo ""
+    install_brew_packages
+    echo ""
 
     setup_nvm
     echo ""
@@ -622,8 +663,11 @@ main() {
     setup_git
     echo ""
 
-    #setup_php
-    #echo ""
+    setup_php
+    echo ""
+
+    setup_composer
+    echo ""
 
     setup_utils
     echo ""
