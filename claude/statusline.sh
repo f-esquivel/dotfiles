@@ -1,6 +1,7 @@
 #!/bin/bash
 # Claude Code status line script
 # Displays: [Model] directory | branch (workspace) | ctx: N% | $X.XX
+# Non-git: [Model] directory | ⊘ no git (workspace) | ctx: N% | $X.XX
 
 input=$(cat)
 
@@ -21,17 +22,27 @@ MODEL=$(echo "$input" | jq -r '.model.display_name // "Claude"')
 CURRENT_DIR=$(echo "$input" | jq -r '.workspace.current_dir // empty')
 DIR_NAME="${CURRENT_DIR##*/}"
 
-# Git info (if in a repo)
+# Git info and workspace detection
 BRANCH=""
 WORKSPACE=""
+IS_GIT_REPO=false
 if [ -n "$CURRENT_DIR" ]; then
-    BRANCH=$(git -C "$CURRENT_DIR" branch --show-current 2>/dev/null)
-    GIT_EMAIL=$(git -C "$CURRENT_DIR" config user.email 2>/dev/null)
-    # Map email domain to workspace name
-    case "$GIT_EMAIL" in
-        *@outlook.com) WORKSPACE="personal" ;;
-        *@ese.plus) WORKSPACE="ese" ;;
-    esac
+    if git -C "$CURRENT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
+        IS_GIT_REPO=true
+        BRANCH=$(git -C "$CURRENT_DIR" branch --show-current 2>/dev/null)
+        GIT_EMAIL=$(git -C "$CURRENT_DIR" config user.email 2>/dev/null)
+        # Map email domain to workspace name
+        case "$GIT_EMAIL" in
+            *@outlook.com) WORKSPACE="personal" ;;
+            *@ese.plus) WORKSPACE="ese" ;;
+        esac
+    else
+        # Fallback: detect workspace from directory path
+        case "$CURRENT_DIR" in
+            */ese/*) WORKSPACE="ese" ;;
+            *)       WORKSPACE="personal" ;;
+        esac
+    fi
 fi
 
 # Context window usage
@@ -66,8 +77,13 @@ fi
 # Build status line
 STATUS="${BOLD}${ORANGE}[${MODEL}]${RESET}"
 [ -n "$DIR_NAME" ] && STATUS="$STATUS ${BLUE}${DIR_NAME}${RESET}"
-[ -n "$BRANCH" ] && STATUS="$STATUS ${GRAY}|${RESET} ${GREEN}${BRANCH}${RESET}"
-[ -n "$WORKSPACE" ] && STATUS="$STATUS ${DIM}(${WORKSPACE})${RESET}"
+if [ "$IS_GIT_REPO" = true ]; then
+    [ -n "$BRANCH" ] && STATUS="$STATUS ${GRAY}|${RESET} ${GREEN}${BRANCH}${RESET}"
+    [ -n "$WORKSPACE" ] && STATUS="$STATUS ${DIM}(${WORKSPACE})${RESET}"
+else
+    STATUS="$STATUS ${GRAY}|${RESET} ${RED}⊘ no git${RESET}"
+    [ -n "$WORKSPACE" ] && STATUS="$STATUS ${DIM}(${WORKSPACE})${RESET}"
+fi
 STATUS="$STATUS ${GRAY}|${RESET} ${CTX_COLOR}ctx: ${PCT}%${RESET}"
 [ -n "$COST_FMT" ] && STATUS="$STATUS ${GRAY}|${RESET} ${CYAN}\$${COST_FMT}${RESET}"
 
