@@ -77,22 +77,41 @@ Same as `/review-mr` Step 1 — search for project review guidelines, MR/PR temp
 ### Step 4: Compute Delta Diff
 
 1. Get the `head_commit` from the last review round (Step 1)
-2. Check if the last reviewed commit exists locally:
+
+2. **Fetch the MR-scoped file list** from the platform API — this is the authoritative set of files the MR actually changes against the target branch:
+   - **GitLab:**
+     ```bash
+     glab api "projects/<url-encoded-path>/merge_requests/<iid>/changes" \
+       | python3 -c "import sys,json; [print(c['new_path']) for c in json.load(sys.stdin).get('changes',[])]"
+     ```
+   - **GitHub:**
+     ```bash
+     gh api repos/{owner}/{repo}/pulls/{id}/files --jq '.[].filename'
+     ```
+   Store this list as `MR_FILES`. Any file **not** in this list is out of scope (e.g. changes arriving via merge commits from other branches like `develop`).
+
+3. Check if the last reviewed commit exists locally:
    ```bash
    git cat-file -t <last_head_commit> 2>/dev/null
    ```
-3. **If commit exists** → compute incremental diff:
+
+4. **If commit exists** → compute incremental diff **scoped to MR files only**:
    ```bash
-   git diff <last_head_commit>..HEAD
+   git diff <last_head_commit>..HEAD -- <MR_FILES...>
    ```
-4. **If commit does NOT exist** (force-push / rebase) → warn the user:
+
+5. **If commit does NOT exist** (force-push / rebase) → warn the user:
    > Previous review head commit `<sha>` not found — MR was likely force-pushed or rebased. Falling back to full diff against target branch.
 
    Then fall back to:
    ```bash
    git diff <target_branch>...HEAD
    ```
-5. **If no changes** in the diff → skip new code review (Step 6), only perform resolution check (Step 5)
+   (three-dot diff already excludes non-MR changes)
+
+6. **If no changes** in the diff → skip new code review (Step 6), only perform resolution check (Step 5)
+
+> **Why filter by MR files?** A two-dot `git diff last_commit..HEAD` includes *all* changes between the two commits, including changes arriving via merge commits from other branches (e.g. `Merge branch 'develop'`). Those changes are **not part of the MR** — the platform API correctly excludes them. Reviewing or commenting on non-MR files produces invalid inline comments (the platform rejects DiffNote positions for files outside the MR diff).
 
 ### Step 5: Resolution Check
 
@@ -126,13 +145,15 @@ For each comment from the previous round:
 
 If there are new changes (from Step 4):
 
-1. Read all changed files for full context (same as `/review-mr` Step 3)
-2. Perform a structured review scoped to the delta diff only (same format as `/review-mr` Step 5):
+1. Read all changed files for full context (same as `/review-mr` Step 3) — **only files in `MR_FILES`**
+2. Perform a structured review scoped to the MR delta diff only (same format as `/review-mr` Step 5):
    - Summary of new changes
    - Issues found in new code
    - Style/conventions
    - Suggestions
    - Verdict (considering both resolution status and new findings)
+
+> **Scope reminder:** Only review and comment on files that appear in the MR-scoped file list (`MR_FILES` from Step 4). Changes from merge commits (e.g. `Merge branch 'develop'`) are out of scope even if they appear in the git log.
 3. The verdict should account for:
    - Unresolved previous comments that still persist
    - New issues found in the delta
@@ -222,3 +243,4 @@ Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Ste
 - **NEVER** add `reviews/` to `.gitignore` — use `.git/info/exclude` instead
 - Do NOT re-post previous comments that persist — they are tracked in the resolution table only
 - If no history file exists: try bootstrapping from API comments first, fall back to full review only if no comments found either
+- **NEVER** review or comment on files that are not in the MR-scoped file list (`MR_FILES`). Changes introduced by merge commits from other branches (e.g. `Merge branch 'develop'`) are **out of scope** — they belong to a different MR/branch and the platform will reject inline comments on those files
