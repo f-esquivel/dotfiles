@@ -98,28 +98,28 @@ vscode "catppuccin.catppuccin-vsc"      # Catppuccin theme
 vscode "pixl-garden.bongocat"           # Bongo Cat status bar
 
 # Code Intelligence
-vscode "christian-kohler.path-intellisense"
-vscode "dbaeumer.vscode-eslint"
-vscode "editorconfig.editorconfig"
-vscode "esbenp.prettier-vscode"
-vscode "wix.vscode-import-cost"
+vscode "christian-kohler.path-intellisense"  # Autocompletes filenames in import paths
+vscode "dbaeumer.vscode-eslint"              # ESLint linter integration
+vscode "editorconfig.editorconfig"           # .editorconfig support
+vscode "esbenp.prettier-vscode"              # Prettier code formatter
+vscode "wix.vscode-import-cost"              # Inline JS/TS import size hints
 
 # AI Assistants
-vscode "coderabbit.coderabbit-vscode"
-vscode "google.geminicodeassist"
-vscode "sst-dev.opencode"
+vscode "coderabbit.coderabbit-vscode"   # CodeRabbit AI code reviews
+vscode "google.geminicodeassist"        # Gemini Code Assist
+vscode "sst-dev.opencode"               # OpenCode AI coding agent
 
 # Language Support
-vscode "golang.go"
-vscode "ms-vscode.vscode-typescript-next"
-vscode "redhat.vscode-yaml"
-vscode "kennylong.kubernetes-yaml-formatter"
+vscode "golang.go"                              # Go language support
+vscode "ms-vscode.vscode-typescript-next"       # Latest TypeScript/JavaScript features
+vscode "redhat.vscode-yaml"                     # YAML language support
+vscode "kennylong.kubernetes-yaml-formatter"    # K8s manifest formatter
 
 # Tools & Utilities
 vscode "elijah-potter.harper"           # Grammar checker
-vscode "formulahendry.code-runner"
-vscode "foxundermoon.shell-format"
-vscode "github.vscode-github-actions"
-vscode "icrawl.discord-vscode"
-vscode "ms-azuretools.vscode-containers"
-vscode "yzhang.markdown-all-in-one"
+vscode "formulahendry.code-runner"      # Run code snippets in editor
+vscode "foxundermoon.shell-format"      # Shell script formatter
+vscode "github.vscode-github-actions"   # GitHub Actions workflow editor
+vscode "icrawl.discord-vscode"          # Discord rich presence integration
+vscode "ms-azuretools.vscode-containers" # Container/Docker tooling
+vscode "yzhang.markdown-all-in-one"     # Markdown editing helpers
