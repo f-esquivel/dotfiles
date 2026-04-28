@@ -168,32 +168,61 @@ if [ "$DRAFT_COUNT" -gt 0 ]; then
     else
         echo "Warning: bulk_publish returned HTTP $bulk_code, verifying..." >&2
 
-        # Wait for GitLab to finish processing — bulk_publish may succeed
-        # server-side despite returning 500, and re-fetching too early can
-        # show stale drafts, leading to duplicate comments via individual publish
-        sleep 3
-
-        remaining=$(curl -s -H "PRIVATE-TOKEN: $TOKEN" "$BASE_URL/draft_notes" | jq 'length')
-
-        if [ "$remaining" -eq 0 ]; then
-            echo "Bulk publish: OK (succeeded despite HTTP $bulk_code)"
-        else
-            echo "Bulk publish: $remaining drafts remain, publishing individually..." >&2
-
-            draft_ids=$(curl -s -H "PRIVATE-TOKEN: $TOKEN" "$BASE_URL/draft_notes" | jq -r '.[].id')
-            for draft_id in $draft_ids; do
-                curl -s -o /dev/null \
-                    -X PUT \
-                    -H "PRIVATE-TOKEN: $TOKEN" \
-                    "$BASE_URL/draft_notes/$draft_id/publish"
-            done
-
+        # Bulk publish may succeed server-side despite returning 500.
+        # Poll multiple times before falling back to individual publish
+        # to avoid duplicates from re-publishing already-published drafts.
+        remaining="$DRAFT_COUNT"
+        for attempt in 1 2 3 4 5; do
+            sleep 3
             remaining=$(curl -s -H "PRIVATE-TOKEN: $TOKEN" "$BASE_URL/draft_notes" | jq 'length')
             if [ "$remaining" -eq 0 ]; then
-                echo "Bulk publish: OK (individual publish succeeded)"
+                echo "Bulk publish: OK (succeeded despite HTTP $bulk_code, confirmed on attempt $attempt)"
+                break
+            fi
+            echo "  Attempt $attempt: $remaining drafts still remain, waiting..." >&2
+        done
+
+        if [ "$remaining" -gt 0 ]; then
+            # Before individual publish, check whether bulk_publish actually
+            # created published notes (GitLab can return 500 yet succeed).
+            # Count notes authored by us on this MR to detect ghost-publish.
+            author_username=$(glab auth status 2>&1 | awk '/Logged in.*as/{print $NF}' | tr -d ',')
+            published_count=0
+            if [ -n "$author_username" ]; then
+                published_count=$(curl -s -H "PRIVATE-TOKEN: $TOKEN" "$BASE_URL/discussions" \
+                    | jq --arg user "$author_username" \
+                        '[.[] | .notes[] | select(.author.username == $user and .type == "DiffNote")] | length')
+            fi
+
+            if [ "$published_count" -ge "$DRAFT_COUNT" ]; then
+                echo "Bulk publish: OK (notes already published despite stale draft listing, $published_count found)" >&2
+                # Drafts are ghost entries — delete them to clean up.
+                draft_ids=$(curl -s -H "PRIVATE-TOKEN: $TOKEN" "$BASE_URL/draft_notes" | jq -r '.[].id')
+                for draft_id in $draft_ids; do
+                    curl -s -o /dev/null \
+                        -X DELETE \
+                        -H "PRIVATE-TOKEN: $TOKEN" \
+                        "$BASE_URL/draft_notes/$draft_id"
+                done
             else
-                echo "Error: $remaining drafts still remain after individual publish" >&2
-                HAD_FAILURE=true
+                echo "Bulk publish: $remaining drafts remain, publishing individually..." >&2
+
+                draft_ids=$(curl -s -H "PRIVATE-TOKEN: $TOKEN" "$BASE_URL/draft_notes" | jq -r '.[].id')
+                for draft_id in $draft_ids; do
+                    curl -s -o /dev/null \
+                        -X PUT \
+                        -H "PRIVATE-TOKEN: $TOKEN" \
+                        "$BASE_URL/draft_notes/$draft_id/publish"
+                done
+
+                sleep 2
+                remaining=$(curl -s -H "PRIVATE-TOKEN: $TOKEN" "$BASE_URL/draft_notes" | jq 'length')
+                if [ "$remaining" -eq 0 ]; then
+                    echo "Bulk publish: OK (individual publish succeeded)"
+                else
+                    echo "Error: $remaining drafts still remain after individual publish" >&2
+                    HAD_FAILURE=true
+                fi
             fi
         fi
     fi
