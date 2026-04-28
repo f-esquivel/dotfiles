@@ -147,3 +147,5 @@ fi
 
 # Load user-specific configuration (paths, aliases, environment variables)
 [ -s "$DOTFILES_DIR/zsh/.zshrc.user" ] && source "$DOTFILES_DIR/zsh/.zshrc.user"
+# Added by Antigravity
+export PATH="/Users/frank/.antigravity/antigravity/bin:$PATH"
