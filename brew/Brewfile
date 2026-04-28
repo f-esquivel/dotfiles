@@ -10,36 +10,43 @@
 # -----------------------------------------------------------------------------
 
 tap "oven-sh/bun"
+tap "steipete/tap"
 
 # -----------------------------------------------------------------------------
 # CLI Tools & Utilities
 # -----------------------------------------------------------------------------
 
 brew "bat"              # Better cat with syntax highlighting
-brew "curl"             # Transfer data with URLs
 brew "fastfetch"        # System information tool
+brew "ffmpeg"           # Audio/video conversion and processing
 brew "fzf"              # Fuzzy finder
 brew "gh"               # GitHub CLI
 brew "git"              # Version control
-brew "jq"               # JSON processor
 brew "make"             # Build automation
 brew "mkcert"           # SSL certificate generation
 brew "nvm"              # Node version manager
+brew "pandoc"           # Universal document converter
+brew "poppler"          # PDF rendering library and utilities
 brew "ripgrep"          # Fast grep alternative
+brew "yq"               # YAML/JSON/XML processor
 
 # -----------------------------------------------------------------------------
 # Development Tools
 # -----------------------------------------------------------------------------
 
 brew "act"              # Run GitHub Actions locally
+brew "d2"               # Diagram scripting language
+brew "git-cliff"        # Changelog generator from git history
+brew "glab"             # GitLab CLI
 brew "go"               # Go programming language
+brew "opencode"         # OpenCode AI coding agent
+brew "shellcheck"       # Shell script static analysis
+brew "yamllint"         # YAML linter
 
 # -----------------------------------------------------------------------------
 # Databases & Data Tools
 # -----------------------------------------------------------------------------
 
-brew "freetds"                                  # SQL Server protocol library
-brew "libpq"                                    # PostgreSQL library
 brew "pgvector"                                 # Vector similarity search for PostgreSQL
 brew "postgresql@15", restart_service: :changed # PostgreSQL database
 brew "redis", restart_service: :changed         # In-memory data store
@@ -68,7 +75,8 @@ brew "yarn"             # JavaScript package manager
 
 # Development
 cask "appcleaner"               # Thorough application uninstaller
-cask "claude-code"              # Claude AI code editor
+cask "bruno"                    # Open-source API client
+cask "codex"                    # OpenAI Codex desktop app
 cask "ghostty"                  # Terminal emulator
 cask "jetbrains-toolbox"        # JetBrains tools manager
 cask "ngrok"                    # Secure tunneling
@@ -82,6 +90,7 @@ cask "gcloud-cli"               # Google Cloud CLI
 
 # Utilities
 cask "raycast"                  # Spotlight replacement & productivity tool
+cask "stats"                    # macOS system monitor in menu bar
 cask "the-unarchiver"           # Archive extraction
 
 # Fonts
@@ -94,8 +103,9 @@ cask "font-jetbrains-mono"      # JetBrains monospaced font
 # -----------------------------------------------------------------------------
 
 # Themes & UI
-vscode "catppuccin.catppuccin-vsc"      # Catppuccin theme
-vscode "pixl-garden.bongocat"           # Bongo Cat status bar
+vscode "catppuccin.catppuccin-vsc"              # Catppuccin theme
+vscode "oleksandrhavrysh.vscode-intellij-theme" # IntelliJ IDEA theme
+vscode "pixl-garden.bongocat"                   # Bongo Cat status bar
 
 # Code Intelligence
 vscode "christian-kohler.path-intellisense"  # Autocompletes filenames in import paths
@@ -105,21 +115,37 @@ vscode "esbenp.prettier-vscode"              # Prettier code formatter
 vscode "wix.vscode-import-cost"              # Inline JS/TS import size hints
 
 # AI Assistants
+vscode "anthropic.claude-code"          # Claude Code integration
 vscode "coderabbit.coderabbit-vscode"   # CodeRabbit AI code reviews
 vscode "google.geminicodeassist"        # Gemini Code Assist
 vscode "sst-dev.opencode"               # OpenCode AI coding agent
 
 # Language Support
 vscode "golang.go"                              # Go language support
+vscode "irongeek.vscode-env"                    # .env file syntax highlighting
+vscode "kennylong.kubernetes-yaml-formatter"    # K8s manifest formatter
+vscode "ms-vscode.makefile-tools"               # Makefile language support
 vscode "ms-vscode.vscode-typescript-next"       # Latest TypeScript/JavaScript features
 vscode "redhat.vscode-yaml"                     # YAML language support
-vscode "kennylong.kubernetes-yaml-formatter"    # K8s manifest formatter
 
 # Tools & Utilities
-vscode "elijah-potter.harper"           # Grammar checker
-vscode "formulahendry.code-runner"      # Run code snippets in editor
-vscode "foxundermoon.shell-format"      # Shell script formatter
-vscode "github.vscode-github-actions"   # GitHub Actions workflow editor
-vscode "icrawl.discord-vscode"          # Discord rich presence integration
-vscode "ms-azuretools.vscode-containers" # Container/Docker tooling
-vscode "yzhang.markdown-all-in-one"     # Markdown editing helpers
+vscode "elijah-potter.harper"                # Grammar checker
+vscode "formulahendry.code-runner"           # Run code snippets in editor
+vscode "foxundermoon.shell-format"           # Shell script formatter
+vscode "github.vscode-github-actions"        # GitHub Actions workflow editor
+vscode "icrawl.discord-vscode"               # Discord rich presence integration
+vscode "ms-azuretools.vscode-containers"     # Container/Docker tooling
+vscode "ms-vscode-remote.remote-containers"  # Dev container support
+vscode "shd101wyy.markdown-preview-enhanced" # Enhanced markdown preview
+vscode "yzhang.markdown-all-in-one"          # Markdown editing helpers
+
+# -----------------------------------------------------------------------------
+# Go Packages
+# -----------------------------------------------------------------------------
+
+go "github.com/conventionalcommit/commitlint"                # Conventional commit linter
+go "github.com/evilmartians/lefthook"                        # Git hooks manager
+go "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"  # Go linter aggregator
+go "golang.org/x/tools/cmd/goimports"                        # Auto-import formatter for Go
+go "golang.org/x/tools/gopls"                                # Go language server
+go "mvdan.cc/gofumpt"                                        # Stricter gofmt
