@@ -17,6 +17,8 @@ source "$DOTFILES_DIR/lib/common.sh"
 DRY_RUN=false
 INTERACTIVE=false
 SKIP_BACKUP=false
+SKIP_BREW=false
+SKIP_PHP=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -33,6 +35,14 @@ while [[ $# -gt 0 ]]; do
             SKIP_BACKUP=true
             shift
             ;;
+        --skip-brew)
+            SKIP_BREW=true
+            shift
+            ;;
+        --skip-php)
+            SKIP_PHP=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -40,6 +50,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --dry-run         Show what would be done without making changes"
             echo "  --interactive, -i Ask before overwriting existing files"
             echo "  --skip-backup     Don't create backups of existing files"
+            echo "  --skip-brew       Skip Homebrew install and Brewfile bundle"
+            echo "  --skip-php        Skip PHP config symlink and Composer install"
             echo "  --help, -h        Show this help message"
             exit 0
             ;;
@@ -635,11 +647,16 @@ main() {
     cd "$DOTFILES_DIR" || exit 1
 
     # Run installation steps
-    install_homebrew
-    echo ""
+    if [ "$SKIP_BREW" = false ]; then
+        install_homebrew
+        echo ""
 
-    install_brew_packages
-    echo ""
+        install_brew_packages
+        echo ""
+    else
+        info "Skipping Homebrew (--skip-brew)"
+        echo ""
+    fi
 
     setup_nvm
     echo ""
@@ -653,11 +670,16 @@ main() {
     setup_git
     echo ""
 
-    setup_php
-    echo ""
+    if [ "$SKIP_PHP" = false ]; then
+        setup_php
+        echo ""
 
-    setup_composer
-    echo ""
+        setup_composer
+        echo ""
+    else
+        info "Skipping PHP setup (--skip-php)"
+        echo ""
+    fi
 
     setup_utils
     echo ""

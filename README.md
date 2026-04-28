@@ -36,6 +36,8 @@ Options:
   --dry-run         Preview changes without making them
   --interactive, -i Ask before overwriting existing files
   --skip-backup     Don't create backups (not recommended)
+  --skip-brew       Skip Homebrew install and Brewfile bundle
+  --skip-php        Skip PHP config symlink and Composer install
   --help, -h        Show help message
 ```
 

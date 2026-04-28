@@ -22,6 +22,8 @@ Running `./install.sh` performs (in order):
 
 Use `--dry-run` to preview without making changes.
 
+To re-run the installer for symlink/config updates without touching brew or PHP (e.g. avoiding `brew upgrade` on `php@8.2`), pass `--skip-brew --skip-php`. Steps 1–2 and 7–8 are then bypassed.
+
 ## Flexible Repository Location
 
 Your dotfiles work from any directory name:
