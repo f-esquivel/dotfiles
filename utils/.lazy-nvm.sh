@@ -41,7 +41,14 @@ function lazy_nvm {
   fi
 }
 
-# Create wrapper functions using a loop
+# Create wrapper functions for each lazy command.
+# We avoid `eval` here: `function "$cmd" { ... }` is supported by both Zsh and
+# Bash and lets the shell parse the body once instead of re-evaluating a
+# string. Each wrapper calls lazy_nvm (which unsets all wrappers, including
+# itself), then re-invokes the now-real command with the original args.
 for cmd in "${NVM_LAZY_COMMANDS[@]}"; do
-  eval "function ${cmd} { lazy_nvm; ${cmd} \"\$@\"; }"
+  function "$cmd" {
+    lazy_nvm
+    "$0" "$@"
+  }
 done
