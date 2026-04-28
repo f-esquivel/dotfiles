@@ -10,6 +10,17 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
+DRY_RUN=false
+
+# Run a command unless --dry-run was passed; print it either way.
+run_or_dry() {
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] $*"
+    else
+        "$@"
+    fi
+}
+
 # =============================================================================
 # Update Functions
 # =============================================================================
@@ -33,6 +44,11 @@ update_dotfiles() {
         fi
     fi
 
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] git pull --rebase"
+        return 0
+    fi
+
     # Pull latest changes
     if git pull --rebase; then
         success "Dotfiles updated"
@@ -51,23 +67,25 @@ update_homebrew() {
     fi
 
     # Update Homebrew itself
-    brew update
+    run_or_dry brew update
 
     # Upgrade all packages
     info "Upgrading installed packages..."
-    brew upgrade
+    run_or_dry brew upgrade
 
     # Upgrade casks
     info "Upgrading casks..."
-    brew upgrade --cask --greedy
+    run_or_dry brew upgrade --cask --greedy
 
     # Clean up old versions
     info "Cleaning up old versions..."
-    brew cleanup
+    run_or_dry brew cleanup
 
     # Run diagnostics
     info "Running diagnostics..."
-    brew doctor || warn "Brew doctor found some issues (non-critical)"
+    if [ "$DRY_RUN" = false ]; then
+        brew doctor || warn "Brew doctor found some issues (non-critical)"
+    fi
 
     success "Homebrew updated"
 }
@@ -81,11 +99,11 @@ update_brewfile() {
     fi
 
     # Install any new packages from Brewfile
-    brew bundle install --file="$DOTFILES_DIR/brew/Brewfile"
+    run_or_dry brew bundle install --file="$DOTFILES_DIR/brew/Brewfile"
 
     # Install from local Brewfile if it exists
     if [ -f "$DOTFILES_DIR/brew/Brewfile.local" ]; then
-        brew bundle install --file="$DOTFILES_DIR/brew/Brewfile.local"
+        run_or_dry brew bundle install --file="$DOTFILES_DIR/brew/Brewfile.local"
     fi
 
     success "Brewfile packages installed"
@@ -101,10 +119,10 @@ update_zim() {
 
     if command -v zsh &> /dev/null; then
         # Update Zim framework
-        zsh -c "source ${HOME}/.zim/zimfw.zsh upgrade" || warn "Zim upgrade had issues"
+        run_or_dry zsh -c "source ${HOME}/.zim/zimfw.zsh upgrade" || warn "Zim upgrade had issues"
 
         # Update Zim modules
-        zsh -c "source ${HOME}/.zim/zimfw.zsh update" || warn "Zim module update had issues"
+        run_or_dry zsh -c "source ${HOME}/.zim/zimfw.zsh update" || warn "Zim module update had issues"
 
         success "Zim updated"
     else
@@ -120,7 +138,7 @@ update_npm_global() {
         return 0
     fi
 
-    npm update -g
+    run_or_dry npm update -g
     success "Global NPM packages updated"
 }
 
@@ -129,6 +147,12 @@ update_macos() {
 
     if [[ "$OSTYPE" != "darwin"* ]]; then
         warn "Not on macOS, skipping"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] softwareupdate --list"
+        info "[dry-run] would prompt for: sudo softwareupdate --install --all"
         return 0
     fi
 
@@ -165,6 +189,10 @@ main() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
             --skip-dotfiles)
                 SKIP_DOTFILES=true
                 shift
@@ -189,6 +217,7 @@ main() {
                 echo "Usage: $0 [OPTIONS]"
                 echo ""
                 echo "Options:"
+                echo "  --dry-run         Print commands without executing them"
                 echo "  --skip-dotfiles   Skip dotfiles git update"
                 echo "  --skip-brew       Skip Homebrew updates"
                 echo "  --skip-zim        Skip Zim updates"

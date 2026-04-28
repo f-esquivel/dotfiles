@@ -11,6 +11,19 @@ source "$SCRIPT_DIR/../lib/common.sh"
 
 LOL_DOTFILES_DIR="$DOTFILES_DIR/games/lol"
 
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run) DRY_RUN=true; shift ;;
+        --help|-h)
+            echo "Usage: $0 [--dry-run]"
+            exit 0
+            ;;
+        *) error "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
 # =============================================================================
 # Find League of Legends Installation
 # =============================================================================
@@ -80,6 +93,12 @@ export_configs() {
         local dest_file="$LOL_DOTFILES_DIR/$config_file"
 
         if [ -f "$source_file" ]; then
+            if [ "$DRY_RUN" = true ]; then
+                info "[dry-run] Would export: $config_file"
+                ((exported++))
+                continue
+            fi
+
             # Backup existing file if it exists
             if [ -f "$dest_file" ]; then
                 mkdir -p "$backup_dir"
@@ -107,6 +126,11 @@ export_configs() {
         echo "  💾 Backup: $backup_dir"
     fi
     echo ""
+
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] $exported file(s) would be exported"
+        return 0
+    fi
 
     # Create metadata file
     cat > "$LOL_DOTFILES_DIR/export-info.txt" <<EOF
