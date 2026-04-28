@@ -41,5 +41,11 @@
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "voiceEnabled": false,
-  "gitAttribution": false
+  "gitAttribution": false,
+  "_notes": {
+    "env.ENABLE_TOOL_SEARCH": "force deferred MCP tool loading; auto mode unreliable",
+    "env.CLAUDE_CODE_DISABLE_1M_CONTEXT": "pin 200K context, avoid 1M billing surprise",
+    "autoMemoryEnabled": "disable auto MEMORY.md writes; CLAUDE.md still active",
+    "skipDangerousModePermissionPrompt": "suppress bypass-permissions launch warning"
+  }
 }
