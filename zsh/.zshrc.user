@@ -60,6 +60,9 @@ export BUN_INSTALL="$HOME/.bun"
 export OPENCODE_MODEL="gemini-2.5-pro"
 export CCUSAGE_TIMEZONE="America/El_Salvador"
 
+export YSU_MESSAGE_POSITION="after"   # show alias hint after command output, not before
+export YSU_HARDCORE=0                 # set to 1 to *block* the command and force the alias
+
 # -----------------------------------------------------------------------------
 # Aliases
 # -----------------------------------------------------------------------------

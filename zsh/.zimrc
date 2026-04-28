@@ -44,14 +44,16 @@ zmodule completion
 # Modules that must be initialized last
 #
 
-# Fish-like syntax highlighting for Zsh.
-# zsh-users/zsh-syntax-highlighting must be sourced after completion
-zmodule zsh-users/zsh-syntax-highlighting
+# Feature-rich syntax highlighting for Zsh (faster, richer rules than zsh-syntax-highlighting).
+# Must be sourced after completion.
+zmodule zdharma-continuum/fast-syntax-highlighting
 # Fish-like history search (up arrow) for Zsh.
-# zsh-users/zsh-history-substring-search must be sourced after zsh-users/zsh-syntax-highlighting
+# zsh-users/zsh-history-substring-search must be sourced after the syntax highlighter.
 zmodule zsh-users/zsh-history-substring-search
 # Fish-like autosuggestions for Zsh.
 zmodule zsh-users/zsh-autosuggestions
+# Reminds you when an alias exists for the command you just typed.
+zmodule MichaelAquilina/zsh-you-should-use
 # }}} End configuration added by Zim install
 
 #
