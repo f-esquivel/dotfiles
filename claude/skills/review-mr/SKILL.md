@@ -274,7 +274,24 @@ Suggestions work on added and context lines. Avoid placing suggestions on remove
 
 **CRITICAL — Context line positioning:** Comments on context lines (unchanged lines visible in the diff hunk) **MUST** set both `old_line` and `new_line`. Setting only `new_line` with `old_line: null` will silently fail — the draft note is created but cannot be published. To find the correct `old_line` for a context line, parse the diff hunk header (`@@ -old_start,old_count +new_start,new_count @@`) and count lines, skipping `+` lines for the old counter and `-` lines for the new counter. If a comment targets a line **outside any diff hunk**, it cannot be placed as a DiffNote — post it as a general MR discussion instead.
 
+> **Note:** `gl-validate-positions.sh` (run automatically by the posting script and by `--dry-run`) catches out-of-hunk positions before any HTTP call, exiting with a per-comment rejection manifest. You do not need to verify hunk membership manually — but the rule above still applies for choosing which line to comment on in the first place.
+
 **Line number verification:** Always cross-reference the target line number against the actual diff output. The line number in the source file may differ from the line number in the diff's new-side due to additions/removals in earlier hunks.
+
+#### Pre-Flight Dry Run (Recommended)
+
+Before posting for real, run the script with `--dry-run` to verify the plan without making any HTTP calls:
+
+```bash
+~/.claude/scripts/gl-post-review.sh --dry-run "$REVIEW_JSON"
+```
+
+What this does:
+- Runs `gl-validate-positions.sh` against the JSON. Any comment whose `(file, line)` falls outside the MR's `base_sha..head_sha` diff is rejected up front (atomic abort, exit 2). This catches the common `400: line_code can't be blank` failure mode before it reaches the API.
+- Prints every planned API call: `POST /discussions`, `POST /draft_notes`, `POST /draft_notes/bulk_publish`, plus the verdict action.
+- Does **not** require `$GITLAB_TOKEN` or `glab auth login` — auth lookup is skipped.
+
+If validation rejects any positions, fix the affected comments (rewrite to target a line that is actually in the MR diff, or drop them) and re-run the dry run. Only proceed to the live run when the dry run exits 0.
 
 #### Run Posting Script
 
@@ -283,13 +300,14 @@ Suggestions work on added and context lines. Avoid placing suggestions on remove
 ```
 
 The script handles:
-1. Token extraction from `glab auth status`
-2. Channel A: POST direct comments via Discussions API
-3. Channel B: POST draft notes via Draft Notes API
-4. Bulk publish drafts (with failure recovery — re-fetch, individual publish, re-verify)
-5. Verdict: approve → `glab mr approve` + `development::done` labels; request_changes → `development::rejected` labels
+1. Token resolution: `$GITLAB_TOKEN` first, falls back to parsing `glab auth status -t`.
+2. Pre-flight: same position validation as `--dry-run`. If any comment is out of scope, nothing is posted (atomic abort, exit 2).
+3. Channel A: POST direct comments via Discussions API.
+4. Channel B: POST draft notes via Draft Notes API, capturing the IDs of drafts created in this run.
+5. Bulk publish with draft-ID tracking. After `bulk_publish`, the script checks which of *our* specific draft IDs survive in `/draft_notes` — survivors are retried individually (`PUT /draft_notes/{id}/publish`, with HTTP 404 treated as a successful publish race). Drafts that still cannot be confirmed as published are **left in place** so a subsequent run can retry without losing data.
+6. Verdict: approve → `glab mr approve` + `development::done` labels; request_changes → `development::rejected` labels. Verdict labels are skipped if posting had any failure.
 
-**Exit codes:** 0 = success, 1 = partial failure, 2 = total failure
+**Exit codes:** 0 = success, 1 = partial failure (per-draft `id`, `file:line`, and HTTP code printed for each survivor), 2 = total failure.
 
 Clean up the temp file after the script completes: `rm "$REVIEW_JSON"`
 

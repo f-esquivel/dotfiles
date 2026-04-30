@@ -181,13 +181,14 @@ Wait for user approval before posting.
 Build the review JSON and run the posting script — same as `/review-mr` Step 7:
 
 1. Build a JSON file with **new comments only** (previous unresolved comments are NOT re-posted)
-2. Run `~/.claude/scripts/gl-post-review.sh "$REVIEW_JSON"`
-3. Clean up: `rm "$REVIEW_JSON"`
-4. **Read the script's exit code and output.**
+2. **Dry run first:** `~/.claude/scripts/gl-post-review.sh --dry-run "$REVIEW_JSON"`. This runs pre-flight position validation and prints the planned API calls without making any HTTP requests. Re-reviews are especially prone to out-of-scope positions (lines that look new in the incremental delta but were actually introduced by parent commits already in `base_sha`) — the dry run catches those before the live post. Only proceed when the dry run exits 0.
+3. Run live: `~/.claude/scripts/gl-post-review.sh "$REVIEW_JSON"`
+4. Clean up: `rm "$REVIEW_JSON"`
+5. **Read the script's exit code and output.**
    - `0` → all comments posted, all drafts published.
    - `1` → partial failure. The script prints, per surviving draft, the `id`, the `file:line` label, and the failing HTTP code. Those drafts are **left in place** on the MR (not deleted) so a subsequent run can retry them via the GitLab UI or by re-invoking the script with a JSON containing only the missing comments.
    - `2` → total failure (validation rejected all positions, missing dependency, or auth failure). Nothing was posted.
-5. If verdict is "request_changes", provide manual UI instructions (see `/review-mr` Step 7)
+6. If verdict is "request_changes", provide manual UI instructions (see `/review-mr` Step 7)
 
 > **Critical:** Only post NEW comments from Step 7. Previous comments marked as `⏳ persists` in the resolution table are tracked in the review history only — they MUST NOT be re-posted.
 
