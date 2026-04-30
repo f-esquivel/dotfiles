@@ -97,7 +97,9 @@ Same as `/review-mr` Step 1 — search for project review guidelines, MR/PR temp
    git diff <last_head_commit>..HEAD -- <MR_FILES...>
    ```
 
-5. **If commit does NOT exist** (force-push / rebase) → warn the user:
+5. **Position scope is enforced at posting time** by `gl-post-review.sh` (which calls `gl-validate-positions.sh` as a pre-flight) — any comment whose `(file, line)` falls outside `base_sha..head_sha` is rejected before any HTTP call is made and the run aborts atomically. You do not need to manually intersect the delta during drafting; just be aware that comments on lines introduced by parent commits already merged into `base_sha` will be rejected with a clear manifest. If validation fails, rewrite or drop the offending comments and re-run.
+
+6. **If commit does NOT exist** (force-push / rebase) → warn the user:
    > Previous review head commit `<sha>` not found — MR was likely force-pushed or rebased. Falling back to full diff against target branch.
 
    Then fall back to:
@@ -106,9 +108,9 @@ Same as `/review-mr` Step 1 — search for project review guidelines, MR/PR temp
    ```
    (three-dot diff already excludes non-MR changes)
 
-6. **If no changes** in the diff → skip new code review (Step 6), only perform resolution check (Step 5)
+7. **If no changes** in the diff → skip new code review (Step 6), only perform resolution check (Step 5)
 
-> **Why filter by MR files?** A two-dot `git diff last_commit..HEAD` includes *all* changes between the two commits, including changes arriving via merge commits from other branches (e.g. `Merge branch 'develop'`). Those changes are **not part of the MR** — the platform API correctly excludes them. Reviewing or commenting on non-MR files produces invalid inline comments (the platform rejects DiffNote positions for files outside the MR diff).
+> **Why filter by MR files?** A two-dot `git diff last_commit..HEAD` includes *all* changes between the two commits, including changes arriving via merge commits from other branches (e.g. `Merge branch 'develop'`). The MR-scoped file list filters out files that aren't part of the MR at all. A second filter — *lines* within MR files that were actually introduced by parent commits already in `base_sha` — is enforced automatically by `gl-validate-positions.sh` at posting time, so you do not have to compute it during drafting.
 
 ### Step 5: Resolution Check
 
@@ -181,7 +183,11 @@ Build the review JSON and run the posting script — same as `/review-mr` Step 7
 1. Build a JSON file with **new comments only** (previous unresolved comments are NOT re-posted)
 2. Run `~/.claude/scripts/gl-post-review.sh "$REVIEW_JSON"`
 3. Clean up: `rm "$REVIEW_JSON"`
-4. If verdict is "request_changes", provide manual UI instructions (see `/review-mr` Step 7)
+4. **Read the script's exit code and output.**
+   - `0` → all comments posted, all drafts published.
+   - `1` → partial failure. The script prints, per surviving draft, the `id`, the `file:line` label, and the failing HTTP code. Those drafts are **left in place** on the MR (not deleted) so a subsequent run can retry them via the GitLab UI or by re-invoking the script with a JSON containing only the missing comments.
+   - `2` → total failure (validation rejected all positions, missing dependency, or auth failure). Nothing was posted.
+5. If verdict is "request_changes", provide manual UI instructions (see `/review-mr` Step 7)
 
 > **Critical:** Only post NEW comments from Step 7. Previous comments marked as `⏳ persists` in the resolution table are tracked in the review history only — they MUST NOT be re-posted.
 
