@@ -93,7 +93,7 @@ Do NOT run `brew bundle dump --force` — it destroys the manual organization.
 | `claude/settings.json` | Global settings (permissions, hooks, model, plugins)                                            |
 | `claude/CLAUDE.md`     | Global instructions (workflow rules, git platform detection)                                    |
 | `claude/commands/`     | Global slash commands (currently empty — migrated to skills)                                    |
-| `claude/skills/`       | Global skills: `/commit`, `/spec`, `/create-issue`, `/create-mr`, `/review-mr`, `/re-review-mr` |
+| `claude/skills/`       | Global skills: `/commit`, `/spec`, `/audit-spec`, `/create-issue`, `/create-mr`, `/review-mr`, `/re-review-mr` |
 | `claude/hooks/`        | Hook scripts (commit validation)                                                                |
 | `claude/scripts/`      | Helper scripts (GitLab review posting)                                                          |
 | `claude/statusline.sh` | Custom status bar                                                                               |

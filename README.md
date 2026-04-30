@@ -94,7 +94,7 @@ dotfiles/
 ├── claude/                 # Global Claude Code config (symlinked to ~/.claude/)
 │   ├── settings.json       # Global settings
 │   ├── CLAUDE.md           # Global instructions
-│   ├── skills/             # Skills (/commit, /spec, /create-issue, /create-mr, /review-mr)
+│   ├── skills/             # Skills (/commit, /spec, /audit-spec, /create-issue, /create-mr, /review-mr, /re-review-mr)
 │   ├── hooks/              # Hook scripts (commit validation)
 │   └── statusline.sh       # Custom status bar
 ├── husky/
