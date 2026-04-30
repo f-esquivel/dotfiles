@@ -76,19 +76,27 @@ Detect platform via: `git remote get-url origin`
 
 ## Spec Files
 
-Spec files (`specs/` directory) are **internal-use only** — they exist to improve DX, never leave the local machine.
+Spec files (`specs/` directory) are **internal-use only** — they exist to improve DX and **must never leave the local machine**. This is a hard rule, no exceptions.
 
 * **NEVER** commit spec files or add them to `.gitignore` (use `.git/info/exclude` instead)
-* **NEVER** reference spec files in issues, MRs, PRs, or any external documentation
+* **NEVER** mention, reference, link, attach, paste, or quote spec files in any artifact that leaves the local machine. This includes — but is not limited to:
+  - Committed Markdown files (READMEs, design docs, ADRs, runbooks, in-repo `docs/`)
+  - Git commit messages and tags
+  - GitLab/GitHub issues, MRs, PRs (titles, descriptions, comments, review threads)
+  - Code comments in committed source files
+  - External chat, email, tickets, or shared documents
+* The path, filename, or existence of a spec file must not appear anywhere outside `specs/` and the local conversation
+* Spec **content** can inform issues, MRs, and committed docs — but the file itself, its path, and its name must not be referenced
 * When creating a `specs/` directory in a project for the first time, automatically add `specs/` to `.git/info/exclude`
-* Spec content can inform issues and MRs, but the spec file itself must not be linked, attached, or mentioned
 
 ## Review Files
 
-Review files (`reviews/` directory) are **internal-use only** — they exist to track review history, never leave the local machine.
+Review files (`reviews/` directory) are **internal-use only** — they exist to track review history and **must never leave the local machine**. This is a hard rule, no exceptions.
 
 * **NEVER** commit review files or add them to `.gitignore` (use `.git/info/exclude` instead)
-* **NEVER** reference review files in issues, MRs, PRs, or any external documentation
+* **NEVER** mention, reference, link, attach, paste, or quote review files in any artifact that leaves the local machine — committed Markdown, commit messages, issues, MRs, PRs, code comments, chat, email, or external docs
+* The path, filename, or existence of a review file must not appear anywhere outside `reviews/` and the local conversation
+* Review **content** can inform inline MR/PR comments — but the file itself, its path, and its name must not be referenced
 * When creating a `reviews/` directory in a project for the first time, automatically add `reviews/` to `.git/info/exclude`
 
 ## Git Rules

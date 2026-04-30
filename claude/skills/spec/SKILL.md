@@ -3,7 +3,7 @@ name: spec
 description: Create specification documents without implementing code. Auto-detects spec type (feature, bug, refactor, integration, infrastructure) and uses the appropriate structure.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Task
+allowed-tools: Read, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Agent, AskUserQuestion, Skill
 argument-hint: [feature-name or description]
 ---
 
@@ -64,10 +64,22 @@ Use the appropriate structure below based on detected type.
 
 ## Spec Structures
 
+**Mandatory metadata block** — every spec, regardless of type, MUST start with this block immediately under the H1 title. Use `<br>` between bold lines per global Markdown rules. `Date` is today's date in ISO format. `Status` is one of: `Draft`, `In Review`, `Approved`, `In Progress`, `Done`, `Blocked`. `Author` is the user's name (Frank).
+
+```markdown
+**Date:** YYYY-MM-DD<br>
+**Status:** Draft<br>
+**Author:** Frank
+```
+
 ### Feature Spec
 
 ```markdown
 # [Feature Name] — Feature Specification
+
+**Date:** YYYY-MM-DD<br>
+**Status:** Draft<br>
+**Author:** Frank
 
 ## Overview
 Brief description of the feature and its business value.
@@ -98,6 +110,9 @@ New or modified endpoints/contracts.
 ### Dependencies
 External services, libraries, or modules involved.
 
+## Out of Scope
+What is explicitly NOT part of this feature. Future considerations belong here, not in requirements.
+
 ## Implementation Steps
 Ordered breakdown of how to build this incrementally.
 1. Step 1 — ...
@@ -116,6 +131,10 @@ Unresolved decisions or items needing clarification.
 ```markdown
 # [Bug Title] — Bug Specification
 
+**Date:** YYYY-MM-DD<br>
+**Status:** Draft<br>
+**Author:** Frank
+
 ## Problem Description
 Clear description of the incorrect behavior.
 
@@ -126,10 +145,10 @@ Clear description of the incorrect behavior.
 
 ## Expected vs Actual Behavior
 
-| | Description |
-|---|---|
-| **Expected** | What should happen |
-| **Actual** | What happens instead |
+|              | Description           |
+|--------------|-----------------------|
+| **Expected** | What should happen    |
+| **Actual**   | What happens instead  |
 
 ## Affected Scope
 - Environments: [dev/staging/prod]
@@ -163,6 +182,10 @@ Unresolved decisions or items needing clarification.
 ```markdown
 # [Refactor Name] — Architecture Specification
 
+**Date:** YYYY-MM-DD<br>
+**Status:** Draft<br>
+**Author:** Frank
+
 ## Motivation
 Why the current architecture is insufficient. Concrete pain points, not theoretical.
 
@@ -184,11 +207,14 @@ How things should work after the refactor.
 ### Component Changes
 Which modules/services/layers change and how.
 
-## Migration Strategy
-How to get from current state to proposed state incrementally.
+## Out of Scope
+What is explicitly NOT part of this refactor. Adjacent cleanup that should NOT be bundled in.
 
-1. Phase 1 — ...
-2. Phase 2 — ...
+## Rollback Plan
+How to get from current state to proposed state incrementally, AND how to revert each step if something goes wrong.
+
+1. Phase 1 — change … · Rollback: …
+2. Phase 2 — change … · Rollback: …
 
 ### Backward Compatibility
 What breaks, what stays compatible, how to handle the transition.
@@ -211,6 +237,10 @@ Unresolved decisions or items needing clarification.
 
 ```markdown
 # [Service Name] Integration — Specification
+
+**Date:** YYYY-MM-DD<br>
+**Status:** Draft<br>
+**Author:** Frank
 
 ## Overview
 What service we're integrating with and why.
@@ -266,6 +296,10 @@ Unresolved decisions or items needing clarification.
 ```markdown
 # [Change Name] — Infrastructure Specification
 
+**Date:** YYYY-MM-DD<br>
+**Status:** Draft<br>
+**Author:** Frank
+
 ## Overview
 What infrastructure change is being made and why.
 
@@ -317,13 +351,18 @@ Unresolved decisions or items needing clarification.
    - If not, append `specs/` to `.git/info/exclude`
    - **NEVER** add to `.gitignore` — use `.git/info/exclude` only (local, not committed)
 3. Ask user to approve the spec content
-4. After approval, offer to:
-   - Save the spec document
-   - Create a GitLab/GitHub issue **from** the spec content — follow the same conventions as the `/create-issue` skill (GitLab in Latin American Spanish, GitHub in English, audience-appropriate acceptance criteria, default labels and assignee)
+4. After approval, save the spec document to the proposed path
+5. Offer to create a tracking issue. If the user accepts, **invoke the `/create-issue` skill** via the Skill tool, passing the feature description. Do NOT mention the spec file, its path, or its existence in the issue — only its content informs the issue body. Do not re-implement the issue-creation flow inline
 
 ## Rules
 
-- Spec files are **internal-use only** — they never leave the local machine
+- Spec files are **internal-use only** — they never leave the local machine. **Hard rule, no exceptions.**
 - **NEVER** commit spec files to git
-- **NEVER** reference or link spec files in issues, MRs, PRs, or any external documentation
-- Spec content can **inform** issues and MRs, but the file itself must not be mentioned
+- **NEVER** mention, reference, link, attach, paste, or quote spec files in any artifact that leaves the local machine. This explicitly includes:
+  - Committed Markdown files (READMEs, ADRs, in-repo `docs/`, runbooks)
+  - Git commit messages and tags
+  - GitLab/GitHub issues, MRs, PRs (titles, descriptions, comments, review threads)
+  - Code comments in committed source files
+  - External chat, email, tickets, or shared documents
+- The path, filename, or existence of a spec file must not appear anywhere outside `specs/` and the local conversation
+- Spec **content** can inform issues, MRs, and committed docs — but the file itself, its path, and its name must not be referenced
