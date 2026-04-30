@@ -22,22 +22,34 @@ MSG=$(echo "$COMMAND" | sed -nE 's/.*-m[[:space:]]+"([^"]+)".*/\1/p')
 if [ -z "$MSG" ]; then
   MSG=$(echo "$COMMAND" | sed -nE "s/.*-m[[:space:]]+'([^']+)'.*/\1/p")
 fi
-# Handle heredoc pattern: -m "$(cat <<'EOF' ... EOF )"
+# Handle heredoc pattern: -m "$(cat <<'EOF' ... EOF )" or <<EOF / <<-EOF
 if [ -z "$MSG" ]; then
-  MSG=$(echo "$COMMAND" | sed -nE 's/.*-m[[:space:]]+"\$\(cat <<.*//p')
+  DELIM=$(printf '%s' "$COMMAND" | sed -nE "s/.*-m[[:space:]]+\"\\\$\\(cat[[:space:]]+<<-?'?([A-Za-z_][A-Za-z0-9_]*)'?.*/\\1/p" | head -n1)
+  if [ -n "$DELIM" ]; then
+    MSG=$(printf '%s' "$COMMAND" | awk -v d="$DELIM" '
+      $0 ~ "<<-?'\''?" d "'\''?" { capture=1; next }
+      capture && $0 ~ "^[[:space:]]*" d "[[:space:]]*$" { exit }
+      capture { print }
+    ')
+  fi
 fi
 
-# If no message extracted (amend without -m, heredoc, etc.), allow through
+# If no message extracted (amend without -m, unparseable form, etc.), allow through
 if [ -z "$MSG" ]; then
   exit 0
 fi
+
+# Bypass merge/revert/fixup/squash commits — these have fixed prefixes git generates
+case "$MSG" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"amend! "*) exit 0 ;;
+esac
 
 # Resolve project directory from hook context or PWD
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
 # --- Strategy 1: Node.js commitlint (project-local) ---
 if [ -f "$PROJECT_DIR/node_modules/.bin/commitlint" ]; then
-  RESULT=$(echo "$MSG" | "$PROJECT_DIR/node_modules/.bin/commitlint" 2>&1)
+  RESULT=$(cd "$PROJECT_DIR" && echo "$MSG" | "$PROJECT_DIR/node_modules/.bin/commitlint" 2>&1)
   STATUS=$?
   if [ $STATUS -ne 0 ]; then
     echo "BLOCKED by project commitlint (node):" >&2
@@ -65,7 +77,10 @@ fi
 
 # --- Strategy 3: Node.js commitlint (global) ---
 # Only if a Node-style config exists (commitlint.config.*, .commitlintrc.*)
-if ls "$PROJECT_DIR"/commitlint.config.* "$PROJECT_DIR"/.commitlintrc* &>/dev/null; then
+shopt -s nullglob
+NODE_CONFIGS=("$PROJECT_DIR"/commitlint.config.* "$PROJECT_DIR"/.commitlintrc*)
+shopt -u nullglob
+if (( ${#NODE_CONFIGS[@]} > 0 )); then
   COMMITLINT_NODE=$(command -v commitlint 2>/dev/null)
   if [ -n "$COMMITLINT_NODE" ] && "$COMMITLINT_NODE" --version 2>&1 | grep -qE '^@commitlint|^[0-9]'; then
     RESULT=$(cd "$PROJECT_DIR" && echo "$MSG" | "$COMMITLINT_NODE" 2>&1)
