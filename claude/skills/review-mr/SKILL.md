@@ -183,14 +183,24 @@ Use `~/.claude/scripts/gl-post-review.sh` to post all comments. The script handl
 
 #### Build Review JSON
 
+Resolve the project identifier with the helper instead of hand-typing it — a raw namespaced path (`group/subgroup/project`) gets parsed as URL path segments by the GitLab API and every comment POST returns 404:
+
+```bash
+PROJECT_ID="$(~/.claude/scripts/gl-project-id.sh)"
+# Emits the URL-encoded path (e.g. "group%2Fsubgroup%2Fproject"). Use
+# `--format=id` for the numeric ID. Resolves from the local git remote.
+```
+
+> **`project_id` encoding requirement:** the value passed to `gl-post-review.sh` must be either a numeric ID or a path with `/` encoded as `%2F`. The posting script auto-encodes raw slashes as a safety net and runs a `GET /projects/:id` pre-flight that aborts with a clear error if the project cannot be resolved, but you should still emit the correct form via the helper.
+
 Create a temporary JSON file with all review data using Python:
 
 ```python
-import json, tempfile
+import json, tempfile, os
 
 review_data = {
-    "gitlab_url": "<gitlab_url>",           # e.g. "https://gitlab.com"
-    "project_id": "<url_encoded_path>",      # e.g. "group%2Fproject"
+    "gitlab_url": "<gitlab_url>",            # e.g. "https://gitlab.com"
+    "project_id": os.environ["PROJECT_ID"],  # from gl-project-id.sh — see above
     "mr_iid": <mr_iid>,
     "diff_refs": {
         "base_sha": "<base_sha>",
@@ -287,9 +297,10 @@ Before posting for real, run the script with `--dry-run` to verify the plan with
 ```
 
 What this does:
+- If a token is available (`$GITLAB_TOKEN` or `glab auth status`), runs `GET /projects/:id` to confirm the project resolves. Catches malformed `project_id` values (raw slashes in a namespaced path, typos, missing access) before any comment-level work. Without a token, this check is skipped.
 - Runs `gl-validate-positions.sh` against the JSON. Any comment whose `(file, line)` falls outside the MR's `base_sha..head_sha` diff is rejected up front (atomic abort, exit 2). This catches the common `400: line_code can't be blank` failure mode before it reaches the API.
 - Prints every planned API call: `POST /discussions`, `POST /draft_notes`, `POST /draft_notes/bulk_publish`, plus the verdict action.
-- Does **not** require `$GITLAB_TOKEN` or `glab auth login` — auth lookup is skipped.
+- Does **not** require `$GITLAB_TOKEN` or `glab auth login` — auth lookup is skipped (the project pre-flight is best-effort and only runs if a token happens to be available).
 
 If validation rejects any positions, fix the affected comments (rewrite to target a line that is actually in the MR diff, or drop them) and re-run the dry run. Only proceed to the live run when the dry run exits 0.
 
@@ -301,7 +312,7 @@ If validation rejects any positions, fix the affected comments (rewrite to targe
 
 The script handles:
 1. Token resolution: `$GITLAB_TOKEN` first, falls back to parsing `glab auth status -t`.
-2. Pre-flight: same position validation as `--dry-run`. If any comment is out of scope, nothing is posted (atomic abort, exit 2).
+2. Pre-flight: normalizes `project_id` (auto-encodes raw slashes), then `GET /projects/:id` to confirm the project resolves, then position validation (same as `--dry-run`). If any check fails, nothing is posted (atomic abort, exit 2).
 3. Channel A: POST direct comments via Discussions API.
 4. Channel B: POST draft notes via Draft Notes API, capturing the IDs of drafts created in this run.
 5. Bulk publish with draft-ID tracking. After `bulk_publish`, the script checks which of *our* specific draft IDs survive in `/draft_notes` — survivors are retried individually (`PUT /draft_notes/{id}/publish`, with HTTP 404 treated as a successful publish race). Drafts that still cannot be confirmed as published are **left in place** so a subsequent run can retry without losing data.

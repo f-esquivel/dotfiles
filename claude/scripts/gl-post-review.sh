@@ -80,12 +80,51 @@ BASE_SHA=$(jq -er '.diff_refs.base_sha' "$REVIEW_JSON")
 HEAD_SHA=$(jq -er '.diff_refs.head_sha' "$REVIEW_JSON")
 START_SHA=$(jq -er '.diff_refs.start_sha' "$REVIEW_JSON")
 
-BASE_URL="$GITLAB_URL/api/v4/projects/$PROJECT_ID/merge_requests/$MR_IID"
+# Normalize project_id: GitLab's `/api/v4/projects/:id` accepts either a numeric
+# ID or a URL-encoded namespaced path. A raw namespaced path with literal `/`
+# is interpreted as additional path segments and yields 404. If the JSON
+# carries a raw path (contains `/` and no `%`), encode the slashes here so the
+# rest of the script can interpolate $PROJECT_ID safely. Already-encoded paths
+# and numeric IDs pass through unchanged.
+if [[ "$PROJECT_ID" == */* ]] && [[ "$PROJECT_ID" != *%* ]]; then
+    PROJECT_ID=$(printf '%s' "$PROJECT_ID" | sed 's|/|%2F|g')
+fi
+
+PROJECT_URL="$GITLAB_URL/api/v4/projects/$PROJECT_ID"
+BASE_URL="$PROJECT_URL/merge_requests/$MR_IID"
 
 DIRECT_COUNT=$(jq '[.comments[] | select(.channel == "direct")] | length' "$REVIEW_JSON")
 DRAFT_COUNT=$(jq '[.comments[] | select(.channel == "draft")] | length' "$REVIEW_JSON")
 
 HAD_FAILURE=false
+
+# ---------------------------------------------------------------------------
+# Pre-flight: project must exist & be reachable.
+#
+# Cheap GET /projects/:id catches the original 404-per-draft failure mode
+# (raw-slash project path, typo, missing access) up front instead of after
+# the validation pass and channel-A posts. In dry-run we only check if a
+# token happens to be available — we don't require auth there.
+# ---------------------------------------------------------------------------
+
+if [ -n "$TOKEN" ]; then
+    project_check_body=$(mktemp)
+    project_check_code=$(curl -s -o "$project_check_body" -w "%{http_code}" \
+        -H "PRIVATE-TOKEN: $TOKEN" \
+        "$PROJECT_URL")
+    if [[ ! "$project_check_code" =~ ^2[0-9]{2}$ ]]; then
+        echo "Error: project pre-flight failed: GET $PROJECT_URL → HTTP $project_check_code" >&2
+        echo "  project_id from JSON: $(jq -r '.project_id' "$REVIEW_JSON")" >&2
+        echo "  resolved (encoded):   $PROJECT_ID" >&2
+        if [ "$project_check_code" = "404" ]; then
+            echo "  Hint: ensure project_id is a numeric ID or a URL-encoded namespaced path" >&2
+            echo "        (use ~/.claude/scripts/gl-project-id.sh to emit the correct form)." >&2
+        fi
+        rm -f "$project_check_body"
+        exit 2
+    fi
+    rm -f "$project_check_body"
+fi
 
 # ---------------------------------------------------------------------------
 # Pre-flight: validate positions are within base_sha..head_sha.
