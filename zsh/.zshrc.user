@@ -78,7 +78,10 @@ alias phpsetup="$DOTFILES_DIR/scripts/php-setup.sh"
 alias rzsh="source $DOTFILES_DIR/zsh/.zshrc.user"
 alias kc-redirect-uri="$DOTFILES_DIR/scripts/kc-redirect-uri.sh"
 alias claude="claude --dangerously-skip-permissions"
-alias cc="claude --dangerously-skip-permissions"
+# cc:   pin 200K context, avoid 1M billing surprise
+# cc1m: opt into 1M context window on demand
+alias cc="CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude"
+alias cc1m="claude"
 
 # -----------------------------------------------------------------------------
 # Secrets (API Keys, Tokens)
