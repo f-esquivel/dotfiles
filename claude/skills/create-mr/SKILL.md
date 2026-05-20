@@ -107,7 +107,7 @@ gh pr create --title "<title>" --body "<description>" --base <target> --label "<
 
 Always apply:
 - `squad::[Δ] delta`
-- `development::code review`
+- `development::ready for CR`
 
 ### Assignee
 
