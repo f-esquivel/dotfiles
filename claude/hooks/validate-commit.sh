@@ -17,11 +17,20 @@ if ! echo "$COMMAND" | grep -qE '^git commit\b'; then
   exit 0
 fi
 
-# Extract commit message from -m flag (macOS-compatible)
-MSG=$(echo "$COMMAND" | sed -nE 's/.*-m[[:space:]]+"([^"]+)".*/\1/p')
-if [ -z "$MSG" ]; then
-  MSG=$(echo "$COMMAND" | sed -nE "s/.*-m[[:space:]]+'([^']+)'.*/\1/p")
-fi
+# Extract commit message from the FIRST -m flag (macOS-compatible).
+# awk's match() finds the leftmost occurrence, so multiple -m args don't
+# cause us to grab the body instead of the header.
+MSG=$(printf '%s' "$COMMAND" | awk '
+  {
+    if (match($0, /-m[[:space:]]+("[^"]*"|'\''[^'\'']*'\'')/)) {
+      s = substr($0, RSTART, RLENGTH)
+      sub(/^-m[[:space:]]+./, "", s)
+      sub(/.$/, "", s)
+      print s
+      exit
+    }
+  }
+')
 # Handle heredoc pattern: -m "$(cat <<'EOF' ... EOF )" or <<EOF / <<-EOF
 if [ -z "$MSG" ]; then
   DELIM=$(printf '%s' "$COMMAND" | sed -nE "s/.*-m[[:space:]]+\"\\\$\\(cat[[:space:]]+<<-?'?([A-Za-z_][A-Za-z0-9_]*)'?.*/\\1/p" | head -n1)
@@ -105,8 +114,10 @@ if ! echo "$MSG" | grep -qE "$PATTERN"; then
   exit 2
 fi
 
-# Check lowercase after colon
-DESC=$(echo "$MSG" | sed -E 's/^[^:]+: //')
+# Check lowercase after colon — only against the subject line, since a
+# heredoc body may legitimately contain sentences that start with a capital.
+SUBJECT=$(printf '%s\n' "$MSG" | head -n1)
+DESC=$(echo "$SUBJECT" | sed -E 's/^[^:]+: //')
 FIRST_CHAR=$(echo "$DESC" | cut -c1)
 if echo "$FIRST_CHAR" | grep -qE '^[A-Z]'; then
   echo "BLOCKED: Description after colon must start with lowercase." >&2
