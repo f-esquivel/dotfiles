@@ -59,21 +59,16 @@ Same as `/review-mr` Step 1 — search for project review guidelines, MR/PR temp
 
 ### Step 3: Checkout MR/PR Branch in a Worktree & Fetch Metadata
 
-Re-reviews run in the **same isolated worktree** used by `/review-mr` (reused if it still exists, recreated otherwise). The user's main working tree is never touched.
+Re-reviews run in the **same isolated worktree** used by `/review-mr` at `~/.claude/worktrees/reviews/<repo-slug>/<gl|gh>-<id>/`, reused if still present, recreated otherwise. The user's main working tree is never touched.
 
-1. Capture the main repo root (where `reviews/` lives):
+1. Initialize paths via the helper (run from inside the main repo):
    ```bash
-   MAIN_REPO="$(git rev-parse --show-toplevel)"
+   eval "$(~/.claude/scripts/review-worktree.sh init {gl|gh} "$ARGUMENTS")"
+   # Exports: REPO_SLUG, MAIN_REPO, WORKTREE, META_FILE
    ```
 
-2. Compute the worktree path (same convention as `/review-mr`):
-   ```bash
-   PLATFORM_PREFIX=gl   # or gh, from Step 0
-   WORKTREE="${TMPDIR:-/tmp}/review-${PLATFORM_PREFIX}-${ARGUMENTS}"
-   ```
-
-3. Create or reuse the worktree:
-   - **If `$WORKTREE` is a registered worktree** (`git worktree list | grep -F "$WORKTREE"`):
+2. Create or reuse the worktree:
+   - **If `$WORKTREE` is a registered worktree** (`git -C "$MAIN_REPO" worktree list | grep -F "$WORKTREE"`):
      - `cd "$WORKTREE"`
      - `git fetch origin` — refresh refs so the MR branch reflects the latest pushes
      - Re-checkout the MR/PR branch in place (this updates the worktree to the new MR HEAD, including after force-pushes/rebases):
@@ -81,17 +76,17 @@ Re-reviews run in the **same isolated worktree** used by `/review-mr` (reused if
        - GitHub: `gh pr checkout "$ARGUMENTS"`
    - **Otherwise** create it fresh (e.g. user removed it, or this is the first re-review on a different machine):
      ```bash
-     git worktree add --detach "$WORKTREE" HEAD
+     git -C "$MAIN_REPO" worktree add --detach "$WORKTREE" HEAD
      cd "$WORKTREE"
      ```
      Then:
      - GitLab: `glab mr checkout "$ARGUMENTS"`
      - GitHub: `gh pr checkout "$ARGUMENTS"`
 
-4. **All subsequent steps run inside `$WORKTREE`.** No `git checkout` is performed in `$MAIN_REPO`.
+3. **All subsequent steps run inside `$WORKTREE`.** No `git checkout` is performed in `$MAIN_REPO`.
 
-5. Fetch current MR/PR metadata: `glab mr view $ARGUMENTS` or `gh pr view $ARGUMENTS`
-6. **GitLab:** Fetch current `diff_refs` via the helper (resolves project from git remote, validates SHAs):
+4. Fetch current MR/PR metadata: `glab mr view $ARGUMENTS` or `gh pr view $ARGUMENTS`
+5. **GitLab:** Fetch current `diff_refs` via the helper (resolves project from git remote, validates SHAs):
    ```bash
    eval "$(~/.claude/scripts/gl-mr-diff-refs.sh "$ARGUMENTS")"
    # Exports: BASE_SHA, HEAD_SHA, START_SHA
@@ -261,20 +256,27 @@ Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Ste
 
 3. **Write to `$MAIN_REPO/reviews/{gl|gh}-{id}.md`** — not the worktree's `reviews/`. The history must persist in the user's primary checkout.
 
-4. **Worktree cleanup — verdict-dependent:**
-   - **If verdict is `approve`** → auto-remove the worktree (the MR is done from the reviewer's side):
+4. **Update the sidecar meta** with the new round and verdict:
+   ```bash
+   ~/.claude/scripts/review-worktree.sh write-meta {gl|gh} "$ARGUMENTS" \
+       last_verdict=<approve|request_changes|needs_discussion|comment> \
+       rounds=<N+1>
+   ```
+
+5. **Worktree cleanup — verdict-dependent:**
+   - **If verdict is `approve`** → auto-remove the worktree and its sidecar:
      ```bash
-     cd "$MAIN_REPO"
-     git worktree remove "$WORKTREE"
+     ~/.claude/scripts/review-worktree.sh remove {gl|gh} "$ARGUMENTS"
      ```
      Inform the user the worktree was removed.
-   - **If verdict is `request_changes`, `needs_discussion`, or `comment`** → keep the worktree at `$WORKTREE` for the next re-review round. Inform the user:
-     - To remove manually when done with this MR:
+   - **If verdict is `request_changes`, `needs_discussion`, or `comment`** → keep the worktree at `$WORKTREE` for the next round. Inform the user:
+     - To list all review worktrees / clean up later:
        ```bash
-       git worktree remove "$WORKTREE"
+       ~/.claude/scripts/review-worktree.sh list
+       /cleanup-review-worktrees
        ```
 
-5. Inform the user the review history was updated at `reviews/{gl|gh}-{id}.md` in the main repo.
+6. Inform the user the review history was updated at `reviews/{gl|gh}-{id}.md` in the main repo.
 
 ## Rules
 
@@ -287,8 +289,9 @@ Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Ste
 - Review files (`reviews/` directory) are **internal-use only** — never commit, never reference externally
 - **NEVER** add `reviews/` to `.gitignore` — use `.git/info/exclude` instead
 - Do NOT re-post previous comments that persist — they are tracked in the resolution table only
-- **ALWAYS** run the re-review inside the worktree at `$TMPDIR/review-{gl|gh}-{id}` — reuse it if it exists, recreate if it does not; never `git checkout` in the user's main working tree
-- **Auto-remove the worktree only when the verdict is `approve`.** For any other verdict (`request_changes`, `needs_discussion`, `comment`), keep the worktree for the next round and print the cleanup command instead
+- **ALWAYS** run the re-review inside the worktree at `~/.claude/worktrees/reviews/<repo-slug>/<gl|gh>-<id>/` — reuse it if it exists, recreate if it does not; never `git checkout` in the user's main working tree
+- **ALWAYS** update the sidecar `<gl|gh>-<id>.meta.json` with the new round/verdict
+- **Auto-remove the worktree (and its sidecar) only when the verdict is `approve`.** For any other verdict, keep both for the next round
 - Write `reviews/` history updates to `$MAIN_REPO/reviews/`, not the worktree's `reviews/`
 - If no history file exists: try bootstrapping from API comments first, fall back to full review only if no comments found either
 - **NEVER** review or comment on files that are not in the MR-scoped file list (`MR_FILES`). Changes introduced by merge commits from other branches (e.g. `Merge branch 'develop'`) are **out of scope** — they belong to a different MR/branch and the platform will reject inline comments on those files

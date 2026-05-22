@@ -37,21 +37,19 @@ If no conventions found → proceed with the built-in defaults below.
 
 ### Step 2: Checkout MR/PR Branch in a Worktree
 
-Reviews run in an **isolated git worktree** so the user's main working tree (current branch, staged changes, untracked files) is never disturbed.
+Reviews run in an **isolated git worktree** under `~/.claude/worktrees/reviews/<repo-slug>/<gl|gh>-<id>/`. The user's main working tree (current branch, staged changes, untracked files) is never disturbed. A sidecar `.meta.json` records the worktree's purpose so `/cleanup-review-worktrees` can manage it later.
 
-1. Capture the main repo root — this is where `reviews/` history files will be written:
+1. Initialize paths via the helper (must be run from inside the main repo):
    ```bash
-   MAIN_REPO="$(git rev-parse --show-toplevel)"
+   eval "$(~/.claude/scripts/review-worktree.sh init {gl|gh} "$ARGUMENTS")"
+   # Exports: REPO_SLUG, MAIN_REPO, WORKTREE, META_FILE
    ```
+   - `MAIN_REPO` — where `reviews/` history files will be written
+   - `WORKTREE` — `~/.claude/worktrees/reviews/<repo-slug>/<prefix>-<id>`
+   - `META_FILE` — sibling sidecar at the same level
 
-2. Compute the worktree path. Use platform prefix (`gl`/`gh`) + MR/PR id:
-   ```bash
-   PLATFORM_PREFIX=gl   # or gh
-   WORKTREE="${TMPDIR:-/tmp}/review-${PLATFORM_PREFIX}-${ARGUMENTS}"
-   ```
-
-3. Create or reuse the worktree:
-   - **If `$WORKTREE` already exists as a registered worktree** (`git worktree list | grep -F "$WORKTREE"`):
+2. Create or reuse the worktree:
+   - **If `$WORKTREE` already exists as a registered worktree** (`git -C "$MAIN_REPO" worktree list | grep -F "$WORKTREE"`):
      - `cd "$WORKTREE"`
      - `git fetch origin`
      - Re-checkout the MR/PR branch in place:
@@ -59,16 +57,26 @@ Reviews run in an **isolated git worktree** so the user's main working tree (cur
        - GitHub: `gh pr checkout "$ARGUMENTS"`
    - **Otherwise** create it fresh:
      ```bash
-     git worktree add --detach "$WORKTREE" HEAD
+     git -C "$MAIN_REPO" worktree add --detach "$WORKTREE" HEAD
      cd "$WORKTREE"
      ```
      Then checkout the MR/PR branch inside the worktree:
      - GitLab: `glab mr checkout "$ARGUMENTS"`
      - GitHub: `gh pr checkout "$ARGUMENTS"`
 
+3. **Write the sidecar metadata** — record branch, title, and round so cleanup tooling can make informed decisions:
+   ```bash
+   ~/.claude/scripts/review-worktree.sh write-meta {gl|gh} "$ARGUMENTS" \
+       branch="$(git branch --show-current)" \
+       title="<MR/PR title from Step 3>" \
+       target_branch="<target branch>" \
+       rounds=1
+   ```
+   (The `title` and `target_branch` values are filled in once Step 3 fetches MR/PR details. It's fine to write the meta in two passes — once with the basics here, once enriched after Step 3.)
+
 4. **All subsequent steps run inside `$WORKTREE`.** The main working tree at `$MAIN_REPO` is left untouched — no `git checkout` is performed there.
 
-5. **Do NOT remove the worktree at the end of the review.** Step 8 prints the worktree path and the manual cleanup command for the user.
+5. **Do NOT remove the worktree at the end of the review.** Step 8 handles cleanup (auto-remove on approve, keep otherwise).
 
 ### Step 3: Fetch MR/PR Details
 
@@ -473,11 +481,17 @@ rounds:
 | 2 | ⏳ open | ... |
 ```
 
-4. **Worktree cleanup — verdict-dependent:**
-   - **If verdict is `approve`** → auto-remove the worktree (no follow-up expected):
+4. **Update the sidecar meta** with the final verdict before cleanup:
+   ```bash
+   ~/.claude/scripts/review-worktree.sh write-meta {gl|gh} "$ARGUMENTS" \
+       last_verdict=<approve|request_changes|needs_discussion|comment> \
+       rounds=1
+   ```
+
+5. **Worktree cleanup — verdict-dependent:**
+   - **If verdict is `approve`** → auto-remove the worktree and its sidecar (no follow-up expected):
      ```bash
-     cd "$MAIN_REPO"
-     git worktree remove "$WORKTREE"
+     ~/.claude/scripts/review-worktree.sh remove {gl|gh} "$ARGUMENTS"
      ```
      Inform the user the worktree was removed.
    - **If verdict is `request_changes`, `needs_discussion`, or `comment`** → keep the worktree at `$WORKTREE` for the upcoming re-review. Inform the user:
@@ -485,12 +499,13 @@ rounds:
        ```bash
        cd "$WORKTREE"
        ```
-     - To remove manually when done:
+     - To list all review worktrees and clean up later:
        ```bash
-       git worktree remove "$WORKTREE"
+       ~/.claude/scripts/review-worktree.sh list
+       /cleanup-review-worktrees   # interactive cleanup skill
        ```
 
-5. Inform the user the review was saved to `reviews/{gl|gh}-{mr_id}.md` in the main repo.
+6. Inform the user the review was saved to `reviews/{gl|gh}-{mr_id}.md` in the main repo.
 
 ## Rules
 
@@ -503,6 +518,7 @@ rounds:
 - Review files (`reviews/` directory) are **internal-use only** — never commit, never reference externally
 - **NEVER** add `reviews/` to `.gitignore` — use `.git/info/exclude` instead
 - When creating `reviews/` for the first time, automatically add it to `.git/info/exclude`
-- **ALWAYS** run the review inside the worktree at `$TMPDIR/review-{gl|gh}-{id}` — never `git checkout` in the user's main working tree
-- **Auto-remove the worktree only when the verdict is `approve`.** For any other verdict (`request_changes`, `needs_discussion`, `comment`), keep the worktree for the re-review and print the cleanup command instead
+- **ALWAYS** run the review inside the worktree at `~/.claude/worktrees/reviews/<repo-slug>/<gl|gh>-<id>/` — never `git checkout` in the user's main working tree
+- **ALWAYS** write a sidecar `<gl|gh>-<id>.meta.json` so `/cleanup-review-worktrees` can manage it
+- **Auto-remove the worktree only when the verdict is `approve`.** For any other verdict (`request_changes`, `needs_discussion`, `comment`), keep the worktree for the re-review
 - Write `reviews/` history files to `$MAIN_REPO/reviews/`, not the worktree's `reviews/`

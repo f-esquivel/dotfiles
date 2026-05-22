@@ -93,9 +93,9 @@ Do NOT run `brew bundle dump --force` — it destroys the manual organization.
 | `claude/settings.json` | Global settings (permissions, hooks, model, plugins)                                            |
 | `claude/CLAUDE.md`     | Global instructions (workflow rules, git platform detection)                                    |
 | `claude/commands/`     | Global slash commands (currently empty — migrated to skills)                                    |
-| `claude/skills/`       | Global skills: `/commit`, `/spec`, `/audit-spec`, `/load-spec`, `/update-spec`, `/implement-spec`, `/create-issue`, `/create-mr`, `/review-mr`, `/re-review-mr` |
+| `claude/skills/`       | Global skills: `/commit`, `/spec`, `/audit-spec`, `/load-spec`, `/update-spec`, `/implement-spec`, `/create-issue`, `/create-mr`, `/review-mr`, `/re-review-mr`, `/cleanup-review-worktrees` |
 | `claude/hooks/`        | Hook scripts (commit validation)                                                                |
-| `claude/scripts/`      | Helper scripts (GitLab review posting)                                                          |
+| `claude/scripts/`      | Helper scripts (GitLab review posting, review-worktree management)                              |
 | `claude/statusline.sh` | Custom status bar                                                                               |
 
 ### Review History (per-project, never committed)
@@ -103,6 +103,16 @@ Do NOT run `brew bundle dump --force` — it destroys the manual organization.
 Created by `/review-mr` and `/re-review-mr`:
 - `reviews/{gl|gh}-{id}.md` — Review rounds with YAML frontmatter + markdown body
 - Auto-excluded via `.git/info/exclude`
+
+### Review Worktrees (user-scoped, never committed)
+
+`/review-mr` and `/re-review-mr` run inside isolated git worktrees so the user's main working tree is never disturbed:
+
+- **Layout:** `~/.claude/worktrees/reviews/<repo-slug>/<gl|gh>-<id>/`
+- **Sidecar:** `~/.claude/worktrees/reviews/<repo-slug>/<gl|gh>-<id>.meta.json` records branch, title, rounds, last verdict, main repo path
+- **Auto-cleanup:** worktree removed only when verdict is `approve`. Other verdicts keep the worktree for the next round
+- **Manual cleanup:** `/cleanup-review-worktrees` (interactive, supports `--older-than N`, `--repo <slug>`, `--merged`)
+- **Helper script:** `claude/scripts/review-worktree.sh` (subcommands: `init`, `write-meta`, `list`, `remove`, `remove-path`)
 
 ### Project-Local Configs (NOT symlinked)
 
