@@ -3,7 +3,7 @@ name: review-mr
 description: Review an existing merge request or pull request by ID. Fetches diff, analyzes changes, and provides structured code review with inline diff comments.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Write, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Bash(~/.claude/scripts/*), Task
+allowed-tools: Read, Write, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Bash(mkdir *), Bash(~/.claude/scripts/*), Task
 argument-hint: <MR/PR number>
 ---
 
@@ -35,13 +35,40 @@ If project conventions are found → adopt them for review structure, comment fo
 
 If no conventions found → proceed with the built-in defaults below.
 
-### Step 2: Checkout MR/PR Branch
+### Step 2: Checkout MR/PR Branch in a Worktree
 
-1. Save the current branch: `git branch --show-current`
-2. Checkout the MR/PR branch locally:
-   - GitLab: `glab mr checkout <id>`
-   - GitHub: `gh pr checkout <id>`
-3. After the review is complete (all steps done), return to the original branch: `git checkout <saved-branch>`
+Reviews run in an **isolated git worktree** so the user's main working tree (current branch, staged changes, untracked files) is never disturbed.
+
+1. Capture the main repo root — this is where `reviews/` history files will be written:
+   ```bash
+   MAIN_REPO="$(git rev-parse --show-toplevel)"
+   ```
+
+2. Compute the worktree path. Use platform prefix (`gl`/`gh`) + MR/PR id:
+   ```bash
+   PLATFORM_PREFIX=gl   # or gh
+   WORKTREE="${TMPDIR:-/tmp}/review-${PLATFORM_PREFIX}-${ARGUMENTS}"
+   ```
+
+3. Create or reuse the worktree:
+   - **If `$WORKTREE` already exists as a registered worktree** (`git worktree list | grep -F "$WORKTREE"`):
+     - `cd "$WORKTREE"`
+     - `git fetch origin`
+     - Re-checkout the MR/PR branch in place:
+       - GitLab: `glab mr checkout "$ARGUMENTS"`
+       - GitHub: `gh pr checkout "$ARGUMENTS"`
+   - **Otherwise** create it fresh:
+     ```bash
+     git worktree add --detach "$WORKTREE" HEAD
+     cd "$WORKTREE"
+     ```
+     Then checkout the MR/PR branch inside the worktree:
+     - GitLab: `glab mr checkout "$ARGUMENTS"`
+     - GitHub: `gh pr checkout "$ARGUMENTS"`
+
+4. **All subsequent steps run inside `$WORKTREE`.** The main working tree at `$MAIN_REPO` is left untouched — no `git checkout` is performed there.
+
+5. **Do NOT remove the worktree at the end of the review.** Step 8 prints the worktree path and the manual cleanup command for the user.
 
 ### Step 3: Fetch MR/PR Details
 
@@ -404,14 +431,15 @@ replacement
 
 ### Step 8: Save Review History
 
-After posting comments and before returning to the original branch, save a review history file.
+After posting comments, save a review history file **in the main repo** (not the worktree). The worktree is ephemeral — `reviews/` must live in the user's primary checkout so it persists and is discoverable across reviews.
 
-1. **Determine file path:** `reviews/{gl|gh}-{mr_id}.md`
+1. **Determine file path:** `$MAIN_REPO/reviews/{gl|gh}-{mr_id}.md`
    - Use `gl` for GitLab, `gh` for GitHub
    - `mr_id` is the MR/PR number from `$ARGUMENTS`
+   - `$MAIN_REPO` was captured in Step 2
 2. **Create `reviews/` directory** if it doesn't exist:
-   - `mkdir -p reviews`
-   - Add `reviews/` to `.git/info/exclude` if not already present (same pattern as `specs/`)
+   - `mkdir -p "$MAIN_REPO/reviews"`
+   - Add `reviews/` to `$MAIN_REPO/.git/info/exclude` if not already present (same pattern as `specs/`). Note: a worktree's `.git` is a file pointing back to the main repo, so `.git/info/exclude` lives in `$MAIN_REPO/.git/info/exclude` — write there directly.
 3. **Write the review history file** with this structure:
 
 ```markdown
@@ -445,7 +473,24 @@ rounds:
 | 2 | ⏳ open | ... |
 ```
 
-4. Inform the user the review was saved to `reviews/{gl|gh}-{mr_id}.md`
+4. **Worktree cleanup — verdict-dependent:**
+   - **If verdict is `approve`** → auto-remove the worktree (no follow-up expected):
+     ```bash
+     cd "$MAIN_REPO"
+     git worktree remove "$WORKTREE"
+     ```
+     Inform the user the worktree was removed.
+   - **If verdict is `request_changes`, `needs_discussion`, or `comment`** → keep the worktree at `$WORKTREE` for the upcoming re-review. Inform the user:
+     - To re-enter (inspect, retry a partial post, prep for re-review):
+       ```bash
+       cd "$WORKTREE"
+       ```
+     - To remove manually when done:
+       ```bash
+       git worktree remove "$WORKTREE"
+       ```
+
+5. Inform the user the review was saved to `reviews/{gl|gh}-{mr_id}.md` in the main repo.
 
 ## Rules
 
@@ -458,3 +503,6 @@ rounds:
 - Review files (`reviews/` directory) are **internal-use only** — never commit, never reference externally
 - **NEVER** add `reviews/` to `.gitignore` — use `.git/info/exclude` instead
 - When creating `reviews/` for the first time, automatically add it to `.git/info/exclude`
+- **ALWAYS** run the review inside the worktree at `$TMPDIR/review-{gl|gh}-{id}` — never `git checkout` in the user's main working tree
+- **Auto-remove the worktree only when the verdict is `approve`.** For any other verdict (`request_changes`, `needs_discussion`, `comment`), keep the worktree for the re-review and print the cleanup command instead
+- Write `reviews/` history files to `$MAIN_REPO/reviews/`, not the worktree's `reviews/`

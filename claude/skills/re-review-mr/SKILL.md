@@ -3,7 +3,7 @@ name: re-review-mr
 description: Re-review a previously reviewed MR/PR. Reads review history, checks if previous comments were addressed, and reviews only new changes since last review round.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Bash(~/.claude/scripts/*), Task
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(curl *), Bash(python3 *), Bash(mkdir *), Bash(~/.claude/scripts/*), Task
 argument-hint: <MR/PR number>
 ---
 
@@ -57,14 +57,41 @@ Set the platform prefix: `gl` for GitLab, `gh` for GitHub.
 
 Same as `/review-mr` Step 1 — search for project review guidelines, MR/PR templates, and CLAUDE.md conventions. Use project conventions when found, fall back to built-in defaults.
 
-### Step 3: Checkout MR/PR Branch & Fetch Metadata
+### Step 3: Checkout MR/PR Branch in a Worktree & Fetch Metadata
 
-1. Save the current branch: `git branch --show-current`
-2. Checkout the MR/PR branch:
-   - GitLab: `glab mr checkout $ARGUMENTS`
-   - GitHub: `gh pr checkout $ARGUMENTS`
-3. Fetch current MR/PR metadata: `glab mr view $ARGUMENTS` or `gh pr view $ARGUMENTS`
-4. **GitLab:** Fetch current `diff_refs` via the helper (resolves project from git remote, validates SHAs):
+Re-reviews run in the **same isolated worktree** used by `/review-mr` (reused if it still exists, recreated otherwise). The user's main working tree is never touched.
+
+1. Capture the main repo root (where `reviews/` lives):
+   ```bash
+   MAIN_REPO="$(git rev-parse --show-toplevel)"
+   ```
+
+2. Compute the worktree path (same convention as `/review-mr`):
+   ```bash
+   PLATFORM_PREFIX=gl   # or gh, from Step 0
+   WORKTREE="${TMPDIR:-/tmp}/review-${PLATFORM_PREFIX}-${ARGUMENTS}"
+   ```
+
+3. Create or reuse the worktree:
+   - **If `$WORKTREE` is a registered worktree** (`git worktree list | grep -F "$WORKTREE"`):
+     - `cd "$WORKTREE"`
+     - `git fetch origin` — refresh refs so the MR branch reflects the latest pushes
+     - Re-checkout the MR/PR branch in place (this updates the worktree to the new MR HEAD, including after force-pushes/rebases):
+       - GitLab: `glab mr checkout "$ARGUMENTS"`
+       - GitHub: `gh pr checkout "$ARGUMENTS"`
+   - **Otherwise** create it fresh (e.g. user removed it, or this is the first re-review on a different machine):
+     ```bash
+     git worktree add --detach "$WORKTREE" HEAD
+     cd "$WORKTREE"
+     ```
+     Then:
+     - GitLab: `glab mr checkout "$ARGUMENTS"`
+     - GitHub: `gh pr checkout "$ARGUMENTS"`
+
+4. **All subsequent steps run inside `$WORKTREE`.** No `git checkout` is performed in `$MAIN_REPO`.
+
+5. Fetch current MR/PR metadata: `glab mr view $ARGUMENTS` or `gh pr view $ARGUMENTS`
+6. **GitLab:** Fetch current `diff_refs` via the helper (resolves project from git remote, validates SHAs):
    ```bash
    eval "$(~/.claude/scripts/gl-mr-diff-refs.sh "$ARGUMENTS")"
    # Exports: BASE_SHA, HEAD_SHA, START_SHA
@@ -232,8 +259,22 @@ Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Ste
 ### Verdict: <Approve / Request Changes / Needs Discussion>
 ```
 
-3. Return to the original branch: `git checkout <saved-branch>`
-4. Inform the user the review history was updated
+3. **Write to `$MAIN_REPO/reviews/{gl|gh}-{id}.md`** — not the worktree's `reviews/`. The history must persist in the user's primary checkout.
+
+4. **Worktree cleanup — verdict-dependent:**
+   - **If verdict is `approve`** → auto-remove the worktree (the MR is done from the reviewer's side):
+     ```bash
+     cd "$MAIN_REPO"
+     git worktree remove "$WORKTREE"
+     ```
+     Inform the user the worktree was removed.
+   - **If verdict is `request_changes`, `needs_discussion`, or `comment`** → keep the worktree at `$WORKTREE` for the next re-review round. Inform the user:
+     - To remove manually when done with this MR:
+       ```bash
+       git worktree remove "$WORKTREE"
+       ```
+
+5. Inform the user the review history was updated at `reviews/{gl|gh}-{id}.md` in the main repo.
 
 ## Rules
 
@@ -246,5 +287,8 @@ Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Ste
 - Review files (`reviews/` directory) are **internal-use only** — never commit, never reference externally
 - **NEVER** add `reviews/` to `.gitignore` — use `.git/info/exclude` instead
 - Do NOT re-post previous comments that persist — they are tracked in the resolution table only
+- **ALWAYS** run the re-review inside the worktree at `$TMPDIR/review-{gl|gh}-{id}` — reuse it if it exists, recreate if it does not; never `git checkout` in the user's main working tree
+- **Auto-remove the worktree only when the verdict is `approve`.** For any other verdict (`request_changes`, `needs_discussion`, `comment`), keep the worktree for the next round and print the cleanup command instead
+- Write `reviews/` history updates to `$MAIN_REPO/reviews/`, not the worktree's `reviews/`
 - If no history file exists: try bootstrapping from API comments first, fall back to full review only if no comments found either
 - **NEVER** review or comment on files that are not in the MR-scoped file list (`MR_FILES`). Changes introduced by merge commits from other branches (e.g. `Merge branch 'develop'`) are **out of scope** — they belong to a different MR/branch and the platform will reject inline comments on those files
