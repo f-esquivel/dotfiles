@@ -1,6 +1,6 @@
 #!/bin/bash
 # Claude Code status line script
-# Displays: [Model] directory | branch (workspace) | ctx: N% | $X.XX
+# Displays: [Model] directory | branch [⎇ worktree] (workspace) | ctx: N% | $X.XX
 # Non-git: [Model] directory | ⊘ no git (workspace) | ctx: N% | $X.XX
 
 input=$(cat)
@@ -26,10 +26,22 @@ DIR_NAME="${CURRENT_DIR##*/}"
 BRANCH=""
 WORKSPACE=""
 IS_GIT_REPO=false
+IS_WORKTREE=false
+WORKTREE_NAME=""
 if [ -n "$CURRENT_DIR" ]; then
     if git -C "$CURRENT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
         IS_GIT_REPO=true
         BRANCH=$(git -C "$CURRENT_DIR" branch --show-current 2>/dev/null)
+        GIT_DIR=$(git -C "$CURRENT_DIR" rev-parse --git-dir 2>/dev/null)
+        GIT_COMMON_DIR=$(git -C "$CURRENT_DIR" rev-parse --git-common-dir 2>/dev/null)
+        # Resolve to absolute paths for reliable comparison
+        [ -n "$GIT_DIR" ] && GIT_DIR=$(cd "$CURRENT_DIR" && cd "$GIT_DIR" 2>/dev/null && pwd)
+        [ -n "$GIT_COMMON_DIR" ] && GIT_COMMON_DIR=$(cd "$CURRENT_DIR" && cd "$GIT_COMMON_DIR" 2>/dev/null && pwd)
+        if [ -n "$GIT_DIR" ] && [ -n "$GIT_COMMON_DIR" ] && [ "$GIT_DIR" != "$GIT_COMMON_DIR" ]; then
+            IS_WORKTREE=true
+            WORKTREE_TOPLEVEL=$(git -C "$CURRENT_DIR" rev-parse --show-toplevel 2>/dev/null)
+            WORKTREE_NAME="${WORKTREE_TOPLEVEL##*/}"
+        fi
         GIT_EMAIL=$(git -C "$CURRENT_DIR" config user.email 2>/dev/null)
         # Map email domain to workspace name
         case "$GIT_EMAIL" in
@@ -79,6 +91,7 @@ STATUS="${BOLD}${ORANGE}[${MODEL}]${RESET}"
 [ -n "$DIR_NAME" ] && STATUS="$STATUS ${BLUE}${DIR_NAME}${RESET}"
 if [ "$IS_GIT_REPO" = true ]; then
     [ -n "$BRANCH" ] && STATUS="$STATUS ${GRAY}|${RESET} ${GREEN}${BRANCH}${RESET}"
+    [ "$IS_WORKTREE" = true ] && [ -n "$WORKTREE_NAME" ] && STATUS="$STATUS ${YELLOW}⎇ ${WORKTREE_NAME}${RESET}"
     [ -n "$WORKSPACE" ] && STATUS="$STATUS ${DIM}(${WORKSPACE})${RESET}"
 else
     STATUS="$STATUS ${GRAY}|${RESET} ${RED}⊘ no git${RESET}"
