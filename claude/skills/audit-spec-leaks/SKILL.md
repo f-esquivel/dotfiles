@@ -1,25 +1,34 @@
 ---
 name: audit-spec-leaks
-description: Audit the current branch diff against a base branch (default `develop`) for raw spec list item IDs that leaked into committed code — comments, docblocks, variable/function/class names, log messages, strings. Reports findings and proposes per-finding functional rewrites that preserve intent without exposing the spec ID. Spec files themselves are local-only; their IDs must never reach committed code.
+description: Audit the current branch for spec/review leaks across three sources — branch commits (vs a base branch, default `develop`), staged changes (`git diff --cached`), and commit messages on the branch. Flags raw spec list item IDs, spec/review file paths, and prose references that leaked into comments, docblocks, identifiers, log messages, strings, or commit subjects/bodies. Reports findings and proposes per-finding functional rewrites that preserve intent without exposing the spec ID. Spec and review files are local-only; their IDs and paths must never reach committed artifacts.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Edit, Grep, Glob, Bash(git *), Bash(grep *), Bash(rg *), Bash(awk *), Bash(sed *), Bash(sort *), Bash(uniq *), Bash(wc *), Bash(cat *), Bash(find *), AskUserQuestion, Agent
-argument-hint: [base-branch] [--report-only] [--auto-apply] [--include=PATTERN] [--exclude=PATTERN]
+allowed-tools: Read, Edit, Grep, Glob, Bash(git *), Bash(grep *), Bash(rg *), Bash(awk *), Bash(sed *), Bash(sort *), Bash(uniq *), Bash(wc *), Bash(cat *), Bash(find *), Bash(printf *), AskUserQuestion, Agent
+argument-hint: [base-branch] [--report-only] [--auto-apply] [--include=PATTERN] [--exclude=PATTERN] [--no-staged] [--no-commits] [--no-branch] [--staged-only] [--commits-only]
 ---
 
 # Spec Leak Auditor
 
-Audit the diff between the current branch and a base branch for **raw spec list item IDs** (and other spec-internal references) that leaked into committed code. Spec files live only on the local machine — any reference to them in committed artifacts (`FR-7`, `NFR-2`, `SPEC-ALPHA.md`, `specs/sample-feature/spec.md`) is a leak and must be redacted.
+Audit the current branch for **raw spec list item IDs** (and other spec/review-internal references) that leaked into committed or about-to-be-committed artifacts. Spec files (`specs/`) and review files (`reviews/`) live only on the local machine — any reference to them in committed code, staged code, or commit messages (`FR-7`, `NFR-2`, `SPEC-ALPHA.md`, `specs/sample-feature/spec.md`, `reviews/gh-42.md`) is a leak and must be redacted.
+
+The skill scans **three sources** in a single run (any subset can be disabled via flags):
+
+| Source            | What it covers                                                              | Default |
+|-------------------|-----------------------------------------------------------------------------|---------|
+| Branch diff       | Added/modified lines on this branch vs the base branch (`BASE..HEAD`)       | On      |
+| Staged changes    | Lines added in the index (`git diff --cached`) — not yet committed          | On      |
+| Commit messages   | Subjects and bodies of commits on this branch (`git log BASE..HEAD`)        | On      |
 
 Arguments: $ARGUMENTS
 
 ## Critical Rules
 
-- **Audit only added/modified lines** of the diff (the `+` side). Removed lines (`-`) are out of scope
-- **NEVER** commit changes, push, or amend on the user's behalf
+- **Audit only added/modified lines** of any diff (the `+` side). Removed lines (`-`) are out of scope
+- **NEVER** commit changes, push, amend, or rebase on the user's behalf. Commit-message findings are **report-only** — the user fixes them manually (interactive rebase or `git commit --amend`)
 - **NEVER** rewrite code semantics — proposed redactions must be behavior-preserving (rename + comment cleanup only)
 - **NEVER** read the spec file's content into the diff or paste spec prose into committed code as a "fix" — the goal is to **remove** the dependency on the spec, not to inline it
 - The skill must work with no spec file present — IDs are detected by shape, not by cross-referencing `specs/`
+- Treat `reviews/` exactly like `specs/` — both are local-only and both leak the same way
 
 ## Step 1 — Parse Arguments
 
@@ -32,8 +41,13 @@ Order-independent. Parse from `$ARGUMENTS`:
 | `--auto-apply`     | Apply every proposed rewrite without per-finding confirmation (single bulk approval at the end) |
 | `--include=GLOB`   | Restrict scan to paths matching GLOB (repeatable)                           |
 | `--exclude=GLOB`   | Skip paths matching GLOB (repeatable); always implicitly excludes `specs/`, `reviews/`, `.git/` |
+| `--no-branch`      | Skip the branch-vs-base diff scan                                           |
+| `--no-staged`      | Skip the staged (`git diff --cached`) scan                                  |
+| `--no-commits`     | Skip the commit-message scan                                                |
+| `--staged-only`    | Equivalent to `--no-branch --no-commits` (useful as a pre-commit gate)      |
+| `--commits-only`   | Equivalent to `--no-branch --no-staged`                                     |
 
-Defaults: per-finding confirmation (`--auto-apply` off), full diff scope.
+Defaults: per-finding confirmation (`--auto-apply` off), full scope (all three sources scanned). `--include`/`--exclude` apply to the branch-diff and staged-diff scans only — commit messages are not paths.
 
 If the base branch does not exist locally:
 
@@ -43,7 +57,11 @@ git rev-parse --verify --quiet "<base>" || git rev-parse --verify --quiet "origi
 
 Fall back to `origin/<base>` if present; otherwise abort and ask the user.
 
-## Step 2 — Collect the Diff
+## Step 2 — Collect Scan Inputs
+
+Gather up to three independent inputs (skip any disabled by flags). Each input produces its own list of `(source, location, raw_text)` tuples that feed Step 3.
+
+### 2a — Branch diff (source: `branch`)
 
 Use a merge-base diff so only **this branch's** additions are scanned:
 
@@ -54,13 +72,35 @@ git diff --unified=0 --no-color "$BASE"..HEAD -- ':!specs/' ':!reviews/'
 
 Apply any `--include`/`--exclude` pathspecs after the implicit `specs/`/`reviews/` exclusion.
 
-From the diff, extract only lines starting with `+` (excluding `+++` headers) and record `file:line` for each — `line` is the new-file line number derived from the hunk header.
+From the diff, extract only lines starting with `+` (excluding `+++` headers) and record `file:line` for each — `line` is the new-file line number derived from the hunk header. Location format: `<path>:<line>`.
 
-If the diff is empty → report "no changes against `<base>`" and exit.
+### 2b — Staged changes (source: `staged`)
+
+```sh
+git diff --cached --unified=0 --no-color -- ':!specs/' ':!reviews/'
+```
+
+Apply the same `--include`/`--exclude` filters. Extract `+` lines the same way. Location format: `<path>:<line> (staged)`.
+
+Note: a staged hunk may overlap a branch-diff hunk if the change is already part of an earlier commit on the branch and then re-edited. That is fine — each source is scanned independently; the same leak surfacing in both lists is reported in each source's section, deduped by `(file, line, raw_text)` only within a source.
+
+### 2c — Commit messages (source: `commits`)
+
+```sh
+git log --format='%H%x00%s%x00%b%x1e' "$BASE"..HEAD
+```
+
+Records are NUL-separated `hash\0subject\0body` and record-separated by `\x1e`. For each commit, scan subject and body lines independently. Location format: `<short-sha> subject` or `<short-sha> body:<line-in-body>`.
+
+If any commit is a merge commit (`git log --merges`), include it but tag its source as `commits (merge)` — leaks in merge commits are often inherited from earlier branches and may need attention upstream.
+
+### Empty inputs
+
+If **all three** enabled inputs are empty → report `no changes to scan against <base>` and exit. If only some are empty, note them in the summary (`Staged: empty`) and continue with the rest.
 
 ## Step 3 — Detect Leaks
 
-Run all detectors against the `+` lines collected in Step 2. Each match becomes a **finding** with: file, line, column, raw text, detector that fired, surrounding code context (3 lines), kind (`identifier` / `comment` / `string` / `docblock` / `log` / `path`).
+Run all detectors against the `+` lines (for `branch`/`staged`) and the message lines (for `commits`) collected in Step 2. Each match becomes a **finding** with: source (`branch`/`staged`/`commits`), location, raw text, detector that fired, surrounding context (3 lines for code, ±1 line for commit bodies), kind (`identifier` / `comment` / `string` / `docblock` / `log` / `path` / `commit-subject` / `commit-body` / `commit-trailer`).
 
 ### Detectors
 
@@ -69,16 +109,20 @@ Run all detectors against the `+` lines collected in Step 2. Each match becomes 
 | D1    | `\b(FR|NFR|AC|AR|TE|REQ|TASK|STEP|US|UC)-[A-Z]?\d+\b`       | Canonical spec item IDs: `FR-7`, `NFR-2`, `AC-3`, `FR-X12`              |
 | D2    | `\bSPEC-[A-Z0-9_]+(?:\.md)?\b`                              | Spec file references: `SPEC-ALPHA`, `SPEC-ALPHA.md`                     |
 | D3    | `(?<![/\w])specs?/[\w./-]+\.md\b`                            | Spec paths: `specs/sample-feature/spec.md`                              |
-| D4    | `\bPhase \d+\b` *inside comments/strings/docblocks only*    | Spec phasing language: `// Phase 2 — sample-step`                       |
-| D5    | `\b[A-Z]{2,5}-\d{1,4}\b` *inside comments/strings only*     | Generic spec-shaped IDs not caught by D1 (lower confidence — **warning** not **blocker**) |
-| D6    | `(?i)\b(see|per|implements?|fulfills?|tracked by)\s+(FR|NFR|AC|SPEC)[- ]` | Prose references: `// per FR-7`, `// see SPEC-ALPHA`                  |
+| D3b   | `(?<![/\w])reviews/[\w./-]+\.md\b`                           | Review paths: `reviews/gh-42.md`, `reviews/gl-7.md`                     |
+| D4    | `\bPhase \d+\b` *inside comments/strings/docblocks/commit messages only* | Spec phasing language: `// Phase 2 — sample-step`           |
+| D5    | `\b[A-Z]{2,5}-\d{1,4}\b` *inside comments/strings/commit messages only* | Generic spec-shaped IDs not caught by D1 (lower confidence — still **blocker**) |
+| D6    | `(?i)\b(see|per|implements?|fulfills?|tracked by|refs?|closes?|fixes?)\s+(FR|NFR|AC|SPEC)[- ]` | Prose references: `// per FR-7`, `closes FR-3`     |
+| D7    | `(?i)^(Spec|Specs|Spec-Ref|Spec-File|Refs-Spec|Implements-Spec):\s*\S` *commit-trailer kind only* | Git trailers leaking spec metadata: `Spec: specs/foo/spec.md` |
 
 **Filtering rules:**
 
-- D1/D2/D3/D6 → always flagged regardless of code context (identifier, comment, string, anywhere)
-- D4/D5 → flag only when the match is inside a comment, string literal, or docblock. In identifiers they are too noisy (false positives like `HTTP-2`, `UTF-8`)
+- D1/D2/D3/D3b/D6/D7 → always flagged regardless of context
+- D4/D5 → for `branch`/`staged` sources, flag only when the match is inside a comment, string literal, or docblock (identifiers are too noisy: false positives like `HTTP-2`, `UTF-8`). For the `commits` source, treat the entire message as comment-equivalent and flag unconditionally
+- D7 → only meaningful in `commits` source (`commit-trailer` kind). Skip in `branch`/`staged`
 - Skip matches inside file paths that look like third-party / vendor / lock files (`vendor/`, `node_modules/`, `*.lock`, `*.min.*`, `dist/`, `build/`)
 - Skip matches inside Markdown files under `docs/` only if the surrounding section header is "Glossary" or "References" — otherwise flag (docs commits leak too)
+- Auto-generated commit trailers from common tools (`Co-authored-by:`, `Signed-off-by:`, `Change-Id:`) are not spec metadata and are not flagged by D7
 
 Detect comment/string context by language using simple heuristics (line-based, no AST):
 
@@ -94,35 +138,115 @@ A line with the leak after a comment marker → kind `comment`. A leak between m
 
 ## Step 4 — Group and Report
 
-Group findings by file, sort by line. **Every detection is a blocker** — there is no `warning` tier. A spec ID in committed code is always a leak; the only question is how to redact it.
+Group findings by **source first** (`branch` → `staged` → `commits`), then by file/commit, then by line. **Every detection is a blocker** — there is no `warning` tier. A spec ID in committed or about-to-be-committed artifacts is always a leak; the only question is how to redact it.
 
-Report format (always inline, even with many findings — this is interactive):
+Report format (always inline, even with many findings — this is interactive). Render diff hunks in fenced ` ```diff ` blocks so the terminal syntax-highlights `+` lines green and `-` lines red. Use Unicode glyphs and emoji for visual separation; keep the structure scannable.
+
+### Visual conventions
+
+| Element            | Style                                                                        |
+|--------------------|------------------------------------------------------------------------------|
+| Section header     | `═══` rule above source, emoji-prefixed (`🌿 Branch`, `📥 Staged`, `📜 Commits`) |
+| Finding ID         | `[L1]` (branch), `[S1]` (staged), `[C1]` (commits) — bold, monospace          |
+| Severity tag       | 🔴 always (every finding is a blocker)                                       |
+| Detector tag       | `` `D1` `` in monospace, dot-separated from kind                              |
+| Diff block         | ` ```diff ` fence with `-` (current/leaking) and `+` (proposed) lines        |
+| Leak highlight     | Inline `**FR-7**` bold around the offending substring inside the raw text    |
+| File/commit anchor | `📄 path/to/file.ts:42` or `🔖 abc1234 subject`                              |
+| Rewrite arrow      | `→` between old and new for single-token renames                              |
+
+### Template
 
 ````markdown
-## Spec Leak Audit — <branch> vs <base>
+╔══════════════════════════════════════════════════════════════╗
+║  Spec Leak Audit — <branch> vs <base>                        ║
+╚══════════════════════════════════════════════════════════════╝
 
-**Findings:** <N leaks><br>
-**Files affected:** <N><br>
-**Detectors fired:** D1×<n>, D2×<n>, ...
+**Sources scanned:** 🌿 branch ✓ · 📥 staged ✓ · 📜 commits ✓  (`skipped` per flag)<br>
+**Findings:** 🔴 <N> total — 🌿 <n> · 📥 <n> · 📜 <n><br>
+**Files affected:** <N>  ·  **Commits affected:** <N><br>
+**Detectors fired:** `D1`×<n> · `D2`×<n> · …
 
-### <relative/file/path>:<line>
+───────────────────────────────────────────────────────────────
+## 🌿 Branch  (vs `<base>`)
+───────────────────────────────────────────────────────────────
 
-- **[L1] D1 · comment** — raw text: `// per FR-7, gate processing on parent activation`
-  ```<lang>
-  <3 lines of context, leak line marked with →>
-  ```
-  **Why it leaks:** `FR-7` is a spec item ID; the comment depends on the spec file to be meaningful
-  **Proposed rewrite (functional):**
-  ```<lang>
-  // Only process when the parent record is active (activation gate)
-  ```
+### 📄 `<relative/file/path>`
 
-- **[L2] D1 · identifier** — raw text: `function applyFR7Gate(...)`
-  **Proposed rewrite:** `applyActivationGate`
-  Call sites to update: `<N>` (listed below)
+#### **[L1]** 🔴 `D1` · comment   —   📄 `<file>:<line>`
+
+> raw: `// per **FR-7**, gate processing on parent activation`
+
+```diff
+  function processChild(record) {
+-   // per FR-7, gate processing on parent activation
++   // Only process when the parent record is active (activation gate)
+    if (!record.parent?.active) return;
+```
+
+**Why it leaks:** `FR-7` is a spec item ID; the comment depends on the spec file to be meaningful.
+
+---
+
+#### **[L2]** 🔴 `D1` · identifier   —   📄 `<file>:<line>`
+
+> raw: `function apply**FR7**Gate(...)`
+
+```diff
+- function applyFR7Gate(record) {
++ function applyActivationGate(record) {
+```
+
+**Rename:** `applyFR7Gate` → `applyActivationGate`<br>
+**Call sites to update:** `<N>` (listed below) — `<file>:<line>`, `<file>:<line>`, …
+
+───────────────────────────────────────────────────────────────
+## 📥 Staged
+───────────────────────────────────────────────────────────────
+
+(Same structure as Branch. Anchor reads `📄 <file>:<line> (staged)`. After applying rewrites the user re-stages with `git add <file>`.)
+
+───────────────────────────────────────────────────────────────
+## 📜 Commit Messages
+───────────────────────────────────────────────────────────────
+
+#### **[C1]** 🔴 `D1` · commit-subject   —   🔖 `abc1234`
+
+```diff
+- feat(foo): implement FR-7 gating
++ feat(foo): gate processing on parent activation
+```
+
+**How to apply:** latest commit → `git commit --amend`. Older → `git rebase -i <base>` and mark `reword`.
+
+---
+
+#### **[C2]** 🔴 `D7` · commit-trailer   —   🔖 `def5678` body line 5
+
+```diff
+  Co-authored-by: Alice <alice@example.com>
+- Spec: specs/sample-feature/spec.md
+```
+
+**Proposed fix:** delete the trailer entirely. Spec paths must never appear in commit metadata.
 ````
 
-If no findings → print `✓ No spec leaks detected against <base>.` and stop.
+### Rendering rules
+
+- **Diff fences must use ` ```diff `** (lowercase) so terminals colorize. Never use generic ` ``` ` for the before/after block
+- **Pair `-`/`+` lines tightly** — show the leaking line as `-` and the proposed line as `+`, with at most one line of unchanged context above and below (prefix with two spaces — diff syntax for context). Keep blocks under 8 lines total
+- **Bold the leaking substring** with `**…**` inside the `raw:` line; do NOT bold inside the diff block (diff syntax doesn't render Markdown)
+- **Use horizontal rules (`---`)** between findings within the same file/commit. Use the box-drawing `───` rule (63 chars) only as a major section break between sources
+- **Identifier-only renames** still get a diff block — single-line `-`/`+` is fine. It reads better than prose
+- **Deletions** (e.g., a comment to remove entirely) show only the `-` line in the diff block, no `+`. Add a one-line note: `**Proposed fix:** delete this line.`
+- **Truncate long lines** at 100 cols with `…` on the right; never wrap inside a diff fence (breaks highlighting)
+
+If no findings → print:
+
+```
+✓ No spec leaks detected.
+   🌿 branch: clean   📥 staged: clean   📜 commits: clean
+```
 
 ### Crafting the rewrite (the "functional approach")
 
@@ -141,9 +265,11 @@ When the redaction is non-obvious (e.g., the ID-bearing comment carries informat
 
 Skip this step if `--report-only`.
 
-### Per-finding mode (default)
+### 5.1 — Branch & staged findings
 
-For each finding, in file/line order, use `AskUserQuestion` with options:
+For findings in the `branch` and `staged` sources, edits go to files in the working tree (the same edit fixes both sources if a line appears in both).
+
+**Per-finding mode (default).** For each finding, in source → file/line order, use `AskUserQuestion` with options:
 
 - **Apply proposed rewrite** — run `Edit` with the proposal
 - **Edit before applying** — ask the user for the replacement text, then apply
@@ -151,13 +277,36 @@ For each finding, in file/line order, use `AskUserQuestion` with options:
 - **Skip all remaining in this file** — exit the loop for this file
 - **Abort** — stop the skill entirely
 
-Track applied/skipped/aborted counts.
+Track applied/skipped/aborted counts. After staged-source edits, remind the user to re-run `git add <file>` for the updated lines.
 
-### Bulk mode (`--auto-apply`)
+**Bulk mode (`--auto-apply`).** Print the full proposed-rewrite list as a single preview, then one `AskUserQuestion`: **Apply all / Cancel**. Apply via `Edit` in source → file/line order.
 
-Print the full proposed-rewrite list as a single preview, then one `AskUserQuestion`: **Apply all / Cancel**. Apply via `Edit` in file/line order.
+After edits, re-run Step 2a–2b + 3 silently and confirm both diffs are clean. If any finding remains (e.g., a rename missed a call site), report it as **leftover** and ask whether to re-enter per-finding mode.
 
-After edits, re-run Step 2–3 silently and confirm the diff is clean. If any finding remains (e.g., a rename missed a call site), report it as **leftover** and ask whether to re-enter per-finding mode.
+### 5.2 — Commit-message findings
+
+**The skill never amends or rebases on the user's behalf.** Commit history rewrites are destructive and must be driven by the user.
+
+For each commit with findings, present:
+
+1. Original message (current text)
+2. Proposed message (with all detected leaks redacted, applying the same functional-rewrite rules as code: describe behavior, not provenance)
+3. Exact command(s) for the user to apply it themselves, picked from:
+
+   - **Latest commit only:** `git commit --amend` and replace the message with the proposed one
+   - **Older commit (or multiple):** `git rebase -i <base>` with `reword` markers on the affected SHAs
+   - **Trailer-only fix:** `git commit --amend` (latest) or `git filter-branch --msg-filter` / `git rebase -i` with `reword`
+
+Use `AskUserQuestion` with options per commit:
+
+- **Copy proposed message to clipboard** (via `pbcopy` on macOS) and print the command
+- **Print proposed message + command, I'll handle it**
+- **Skip this commit**
+- **Skip all commit findings**
+
+**Never** run `git commit --amend`, `git rebase`, `git filter-branch`, or `git filter-repo` from the skill. Do not stage or unstage anything tied to a history rewrite.
+
+After the user signals they've reworded, offer to re-run Step 2c + 3 to verify history is clean.
 
 ## Step 5b — Targeted Spec Deep-Scan (Only When Step 3 Found Nothing)
 
@@ -271,20 +420,31 @@ When the agent returns, the main session:
 2. If `selected` is `null`, uses `AskUserQuestion` with the `alternatives` list (plus an "Abort deep-scan" option) to let the user pick. If the user picks one, re-launch the agent with `selected_override: <path>` and ask only for Step B (inventory).
 3. Prints a one-line confirmation: `Deep-scan target: <path> (score: branch=2 commits=1 paths=3 recency=0; alternatives: …)` plus the inventory counts. Does **not** print the full inventory unless the user asks.
 
-### 5b.3 Scan the diff with the agent's inventory
+### 5b.3 Scan all enabled sources with the agent's inventory
 
-The agent's return payload is the only spec content that enters the main session. For each item across `ids`, `phases`, `spec_coined_names`, `sibling_specs`, `glossary_terms`, `section_anchors`:
+The agent's return payload is the only spec content that enters the main session. For each item across `ids`, `phases`, `spec_coined_names`, `sibling_specs`, `glossary_terms`, `section_anchors`, scan **each enabled source** (`branch`, `staged`, `commits`):
 
 - Write the inventory items to a temp file (one per line) to avoid argv-length issues:
   ```sh
   printf '%s\n' "${inventory_items[@]}" > /tmp/spec-inventory.$$
+
+  # Branch diff
   git diff --unified=0 "$BASE"..HEAD -- ':!specs/' ':!reviews/' \
     | grep -E '^\+' | grep -v '^\+\+\+' \
     | grep -nFf /tmp/spec-inventory.$$
-  ```
-- Map matches back to `file:line` using the hunk headers captured in Step 2 (do not re-run the diff once per item)
 
-Apply the same context filters as Step 3 — skip vendor/lock paths. For `glossary_terms` and `section_anchors`, only flag matches **inside comments or strings** (raw identifiers like `overview` are too generic). `spec_coined_names` from the agent are already filtered against pre-existing codebase symbols, so they're flagged unconditionally.
+  # Staged
+  git diff --cached --unified=0 -- ':!specs/' ':!reviews/' \
+    | grep -E '^\+' | grep -v '^\+\+\+' \
+    | grep -nFf /tmp/spec-inventory.$$
+
+  # Commit messages
+  git log --format='%H%n%s%n%b%n---' "$BASE"..HEAD \
+    | grep -nFf /tmp/spec-inventory.$$
+  ```
+- Map matches back to `file:line` (for `branch`/`staged`) using the hunk headers captured in Step 2, or to `<sha> subject|body:<line>` (for `commits`) using the log records captured in Step 2c — do not re-run the diff/log once per item
+
+Apply the same context filters as Step 3 — skip vendor/lock paths. For `glossary_terms` and `section_anchors`, only flag matches **inside comments, strings, or commit messages** (raw identifiers like `overview` are too generic). `spec_coined_names` from the agent are already filtered against pre-existing codebase symbols, so they're flagged unconditionally.
 
 ### 5b.4 Report and route
 
@@ -303,18 +463,24 @@ If it finds leaks → present them in the same report format as Step 4 (tagged `
 ## Spec Leak Audit — Summary
 
 **Base:** <base>  ·  **Branch:** <branch>
-**Applied:** <N>  ·  **Skipped:** <N>  ·  **Leftover:** <N>
+**Sources:** branch ✓ · staged ✓ · commits ✓
+**Code findings:** applied <N> · skipped <N> · leftover <N>
+**Commit-message findings:** <N> total · <N> need user reword (latest: `--amend`; older: `rebase -i`)
 
 Next steps:
-- Review the changes with `git diff`
+- Review the changes with `git diff` (and `git diff --cached` for staged fixes)
+- Re-stage any modified files (`git add <path>`) before committing
+- Reword any flagged commits yourself — the skill does not amend or rebase
 - Re-run tests for renamed symbols
-- Re-run this skill after staging more changes
+- Re-run this skill after rewording or staging more changes
 ```
 
-Do **not** commit. Do **not** push.
+Do **not** commit. Do **not** push. Do **not** amend or rebase.
 
 ## Notes
 
 - The skill is intentionally lossy: it favors false positives over false negatives. A warning the user dismisses is cheap; an `FR-7` reaching `main` is expensive
-- For monorepos, pass `--include=apps/foo/**` to scope the scan
-- Spec file content is **not** read by this skill — IDs are detected by shape. This keeps the skill usable on machines where the spec is not checked out, and prevents accidentally widening the leak by quoting the spec into the rewrite
+- For monorepos, pass `--include=apps/foo/**` to scope the scan (applies to branch/staged sources only)
+- Spec file content is **not** read by this skill in Step 3 — IDs are detected by shape. Only Step 5b's targeted deep-scan loads inventory, and it does so via a subagent so the spec content never enters the main session
+- Pre-commit usage: `--staged-only --auto-apply` makes a good pre-commit hook — scans only what's about to be committed and applies safe rewrites without prompting per finding
+- Pre-push usage: full default run (all three sources) before pushing catches leaks in earlier commits that escaped per-commit gating
