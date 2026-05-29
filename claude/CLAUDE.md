@@ -88,6 +88,7 @@ Spec files (`specs/` directory) are **internal-use only** — they exist to impr
 * The path, filename, or existence of a spec file must not appear anywhere outside `specs/` and the local conversation
 * Spec **content** can inform issues, MRs, and committed docs — but the file itself, its path, and its name must not be referenced
 * When creating a `specs/` directory in a project for the first time, automatically add `specs/` to `.git/info/exclude`
+* **Never write the reference in the first place** — this is the priority. Do not put spec item IDs (`FR-7`, `NFR-2`), spec paths, or provenance prose (`per FR-7`, `implements NFR-2`) into code, identifiers, comments, docblocks, log messages, strings, or commit messages. Describe the behavior, not the spec it came from. Scrubbing a leak after it is written is damage control, not the workflow
 
 ## Review Files
 
@@ -98,6 +99,7 @@ Review files (`reviews/` directory) are **internal-use only** — they exist to 
 * The path, filename, or existence of a review file must not appear anywhere outside `reviews/` and the local conversation
 * Review **content** can inform inline MR/PR comments — but the file itself, its path, and its name must not be referenced
 * When creating a `reviews/` directory in a project for the first time, automatically add `reviews/` to `.git/info/exclude`
+* **Never write the reference in the first place** — same priority as specs: keep review paths (`reviews/gh-42.md`) and review-internal references out of code, comments, and commit messages from the start, rather than relying on scrubbing them out later
 
 ## Git Rules
 
