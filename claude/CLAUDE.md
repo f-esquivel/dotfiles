@@ -101,6 +101,14 @@ Review files (`reviews/` directory) are **internal-use only** — they exist to 
 * When creating a `reviews/` directory in a project for the first time, automatically add `reviews/` to `.git/info/exclude`
 * **Never write the reference in the first place** — same priority as specs: keep review paths (`reviews/gh-42.md`) and review-internal references out of code, comments, and commit messages from the start, rather than relying on scrubbing them out later
 
+## Knowledge Graph (graphify)
+
+The `/graphify` skill builds a queryable knowledge graph from any folder of files. Its outputs are **generated, internal-only artifacts** — same hygiene class as specs and reviews.
+
+* **NEVER** commit `graphify-out/` (graph.json, HTML, `GRAPH_REPORT.md`, intermediate `.graphify_*` files) or any Obsidian vault graphify writes — and never add them to `.gitignore` (use `.git/info/exclude` instead)
+* When `graphify-out/` is first created in a project, automatically add `graphify-out/` to `.git/info/exclude`
+* **Prefer the existing graph** — when the user asks a natural-language question about the codebase AND `graphify-out/graph.json` exists, answer via `graphify query "<question>"` rather than manual grep/exploration. Reserve fresh extraction for explicit rebuilds (`--update`, `--cluster-only`, a bare path/URL)
+
 ## Git Rules
 
 * `git push` is **blocked** globally — never attempt to push. The user will push manually when ready
