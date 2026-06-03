@@ -1,84 +1,102 @@
 ---
 name: implement-spec
-description: Implement a spec file end-to-end, driving from its Implementation Steps and QA Criteria. Loads the spec, plans the work as tasks, executes them, and refuses to drift outside the spec's scope.
+description: Implement one slice of a spec end-to-end. Reads the parent business spec for context, drives from the chosen slice's Implementation Steps and QA Criteria, ticks the parent's slice map on completion, and refuses to drift outside the slice's scope.
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Edit, Write, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(ls *), Bash(find *), Bash(grep *), Agent, AskUserQuestion, Skill, TaskCreate, TaskUpdate, TaskList
-argument-hint: [spec name or path]
+argument-hint: [feature name, folder, or slice path]
 ---
 
 # Implement Spec
 
-Implement the spec identified by: $ARGUMENTS
+Implement the spec slice identified by: $ARGUMENTS
+
+## Spec Layout
+
+A spec is a **feature folder**: a parent business spec (`00-overview.md`, the "why"/"what") plus one technical spec per vertical slice (`NN-<slug>.md`, the "how"). **This skill implements exactly one slice per run** — the parent is read-only context.
 
 ## Critical Rules
 
-- **NEVER** mention, reference, link, or quote the spec file in any artifact that leaves the local machine — committed code, commit messages, issues, MRs, PRs, code comments, or chat. The spec is local-only; this is a hard rule
-- **NEVER** commit the spec file
+- **NEVER** mention, reference, link, or quote any spec file, the folder, its path, or internal IDs (`G1`, `BR1`, slice numbers) in any artifact that leaves the local machine — committed code, commit messages, issues, MRs, PRs, code comments, or chat. The spec is local-only; this is a hard rule
+- **NEVER** commit the spec
 - **NEVER** push (`git push` is globally blocked); the user pushes manually
-- Stay inside the spec's stated scope. If something outside scope is needed, **stop and ask** — do not silently expand the work
+- Stay inside the chosen slice's scope. If something outside the slice (or outside the parent's stated goals) is needed, **stop and ask** — do not silently expand the work or wander into another slice
 - If a requirement, design decision, or QA criterion is ambiguous, **ask** via AskUserQuestion before guessing
 
-## Step 1 — Resolve & Load the Spec
+## Step 1 — Resolve the Feature & Slice
 
-Use the same resolution strategy as `/audit-spec`:
+Resolve the feature folder, same strategy as `/load-spec`:
 
-1. If `$ARGUMENTS` is an existing file path → use it
-2. Otherwise search `specs/`, `docs/specs/`, `docs/`, repo root for `*.md` matching the name
-3. Match by exact filename, substring of filename, then substring of H1 title
-4. Multiple candidates → AskUserQuestion to pick one
-5. No candidates → ask the user for the path; do not guess
+1. Existing folder path → that feature; existing file path → that file's folder (and that file is the target slice)
+2. Otherwise slugify and search `specs/<slug>/`, `docs/specs/<slug>/`, `docs/<slug>/` by folder slug then parent H1
+3. Multiple candidates → AskUserQuestion; none → ask the user (do not guess)
 
-Read the full file. Identify:
-- Spec **type** (Feature / Bug / Refactor / Integration / Infrastructure)
-- Spec **status** in the metadata block — if `Done` or `Blocked`, stop and confirm before proceeding
-- Implementation Steps (or equivalent: Migration phases, Proposed Fix, Deployment Strategy)
-- QA Criteria / Acceptance Criteria
-- Out of Scope / Non-goals (treat these as hard fences)
-- Open Questions — surface them to the user **before** starting; resolve or accept the risk
+Then pick the slice to implement:
+- A specific slice was named → use it
+- Otherwise read the parent's `## Slices` map and choose the **first unchecked slice that has a written `NN-<slug>.md` file**
+- If the next slice in the map has no file yet → stop and tell the user to scaffold it with `/spec` first (this skill does not author specs)
+- Multiple plausible slices → AskUserQuestion
 
-## Step 2 — Pre-flight Audit (recommended)
+**Legacy flat spec:** if resolution finds a standalone single-file spec (no folder), implement that file directly — there is no parent/slice split.
 
-Before implementing, optionally invoke `/audit-spec --report-only <spec>` via the Skill tool. If the audit returns blockers, stop and ask the user whether to fix the spec first or proceed regardless. Skipping the audit is fine for trivial bugs; default to running it for Feature, Refactor, Integration, and Infrastructure specs.
+## Step 2 — Load Context
 
-## Step 3 — Plan as Tasks
+Read, in order:
+1. **Parent `00-overview.md`** — for the business intent: Goals (`G#`), Business Rules (`BR#`), flagged Technical Constraints, Out of Scope. These are hard fences; the implementation must satisfy them and must not violate any `BR#`.
+2. **The target slice** — identify:
+   - Slice **type** (Feature / Bug / Refactor / Integration / Infrastructure)
+   - **Serves** block — confirm the goals/rules/constraints this slice is accountable for
+   - Slice **status** — if `Done` or `Blocked`, stop and confirm before proceeding
+   - Implementation Steps (or equivalent: Proposed Fix, Rollback phases, Deployment Strategy)
+   - Guardrail Enforcement — the mechanisms for any constraint the slice owns
+   - QA Criteria / Acceptance Criteria
+   - Open Questions — surface to the user **before** starting; resolve or accept the risk
 
-Convert each Implementation Step into a task via TaskCreate. Include a final task per QA Criterion: each acceptance/QA item becomes its own verification task.
+## Step 3 — Pre-flight Audit (recommended)
 
-Order tasks to match the spec's order. Mark the first as `in_progress` only when starting work.
+Optionally invoke `/audit-spec --report-only <feature>` via the Skill tool. If it returns blockers (including parent↔slice inconsistencies, e.g. the slice serves no stated goal), stop and ask whether to fix the spec first or proceed. Skipping is fine for trivial bug slices; default to running it for Feature, Refactor, Integration, and Infrastructure slices.
 
-## Step 4 — Execute
+## Step 4 — Plan as Tasks
+
+Convert each Implementation Step into a task via TaskCreate. Add a final verification task per QA Criterion, plus one task per Guardrail Enforcement item ("enforce <constraint>"). Order to match the slice; mark the first `in_progress` only when starting.
+
+## Step 5 — Execute
 
 For each task:
 1. Mark it `in_progress`
-2. Make the change (code, config, migration, test) following the project's conventions — read `CLAUDE.md`, existing patterns, and related modules first
+2. Make the change (code, config, migration, test) following project conventions — read `CLAUDE.md`, existing patterns, and related modules first
 3. Run the project's checks where they exist (typecheck, lint, tests) — do not invent commands; ask if unclear
-4. Mark the task `completed` only when the change is in and verified
+4. Mark `completed` only when the change is in and verified
 
-If a task reveals the spec is wrong (file path doesn't exist, design assumes a function that isn't there, requirement contradicts existing code), **stop**:
+If a task reveals the slice or parent is wrong (path doesn't exist, design assumes a missing function, a step contradicts a `BR#` or existing code), **stop**:
 - Pause the task
-- Report the conflict to the user with file:line and the specific mismatch
-- Ask whether to amend the spec (use `/update-spec`) or adjust the implementation
+- Report the conflict with file:line and the specific mismatch
+- Ask whether to amend the spec (`/update-spec`) or adjust the implementation
 - Do not silently rewrite the spec or guess
 
-## Step 5 — Verify QA Criteria
+## Step 6 — Verify QA Criteria
 
 Walk every QA / Acceptance Criterion explicitly. For each:
 - State how it was verified (test name, manual check, log inspection)
-- If it cannot be verified locally (UI golden path, prod-only behavior), say so plainly — do not claim success
+- For each guardrail the slice owns, confirm enforcement actually holds
+- If something cannot be verified locally (UI golden path, prod-only behavior), say so plainly — do not claim success
 
-If any criterion fails, do not mark the spec done. Report the failure and ask for direction.
+If any criterion fails, do not mark the slice done. Report the failure and ask for direction.
 
-## Step 6 — Wrap Up
+## Step 7 — Wrap Up
 
 1. Summarize what changed (file-level, no spec references)
-2. Offer to invoke `/update-spec` to mark the spec `Status: Done` and record the resulting commits/MR
+2. Offer to invoke `/update-spec` to:
+   - mark the slice `Status: Done`
+   - **tick this slice's entry in the parent's `## Slices` map**
 3. Offer to invoke `/commit` (or `/create-mr` if the branch is push-ready)
-4. **Never** mention the spec file in commit messages, MR descriptions, or comments — the spec content informs the message; the spec path does not appear
+4. If the parent's map still has unchecked slices, mention the next one and that `/spec` scaffolds it (next-slice run)
+5. **Never** mention any spec file, path, or internal ID in commit messages, MR descriptions, or comments — spec content informs the message; the spec itself does not appear
 
 ## Notes
 
-- For Bug specs: implementation = the Proposed Fix; QA = "Original bug no longer reproducible" + regression test
-- For Refactor specs: walk the Rollback Plan phase by phase; treat each phase's rollback note as a real fallback path, not decoration
-- For Integration specs: stub external calls in tests; verify auth, error handling, and fallback paths before declaring done
-- For Infrastructure specs: prefer dry-run / preview commands first; surface every state-changing command for explicit user approval before running
+- One run = one slice. Resist implementing "just the next slice too" — small batches are the point
+- For Bug slices: implementation = the Proposed Fix; QA = "Original bug no longer reproducible" + regression test
+- For Refactor slices: walk the Rollback Plan phase by phase; each phase's rollback note is a real fallback, not decoration
+- For Integration slices: stub external calls in tests; verify auth, error handling, and fallback before declaring done
+- For Infrastructure slices: prefer dry-run / preview commands first; surface every state-changing command for explicit user approval before running
