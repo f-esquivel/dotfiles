@@ -139,28 +139,80 @@ Re-reviews run in the **same isolated worktree** used by `/review-mr` at `~/.cla
 For each comment from the previous round:
 
 1. Read the current state of the file at the referenced line
-2. Determine resolution status:
+2. Make a **provisional** determination from the code alone:
    - **resolved** — the issue was fixed or the suggestion was applied
    - **persists** — the code is unchanged or the problem remains
    - **superseded** — the file/line was removed or significantly refactored (the comment no longer applies)
-3. Build a resolution table with visual status indicators:
 
-| Emoji | Status     | Meaning                                       |
-|-------|------------|-----------------------------------------------|
-| ✅     | resolved   | Issue was fixed or suggestion applied         |
-| ⏳     | persists   | Code unchanged or problem remains             |
-| 🔄    | superseded | File/line removed or significantly refactored |
+3. **Before concluding `persists`, read the discussion thread.** A code-unchanged finding is NOT automatically unaddressed — the author may have replied with a justification, a pointer to a fix elsewhere, or a counter-argument. Fetch the thread replies and weigh them (see Step 5a). Only after evaluating the replies do you finalize the status. `resolved` and `superseded` findings do not require a thread read (the code already settles them), though reading replies on them is harmless.
+
+4. Build a resolution table with visual status indicators:
+
+| Emoji | Status     | Meaning                                                                              |
+|-------|------------|-------------------------------------------------------------------------------------|
+| ✅     | resolved   | Issue was fixed or suggestion applied                                                |
+| 💬    | clarified  | Code unchanged, but the author's reply gives a valid, accurate justification — accept |
+| ⏳     | persists   | Code unchanged AND no reply, or the reply is inaccurate / does not actually address it |
+| 🔄    | superseded | File/line removed or significantly refactored                                       |
 
 ```markdown
 ### Previous Comments Resolution
-| # | Status | File | Comment |
-|---|--------|------|---------|
-| 1 | ✅ resolved | `src/auth.php:42` | Auth middleware added |
-| 2 | ⏳ persists | `src/user.php:15` | Still not extracted |
-| 3 | 🔄 superseded | `src/old.php:10` | File removed |
+| # | Status | File | Comment | Thread |
+|---|--------|------|---------|--------|
+| 1 | ✅ resolved | `src/auth.php:42` | Auth middleware added | — |
+| 2 | ⏳ persists | `src/user.php:15` | Still not extracted | no reply |
+| 3 | 🔄 superseded | `src/old.php:10` | File removed | — |
+| 4 | 💬 clarified | `src/cache.php:30` | Intentional: TTL is enforced upstream (verified) | author justified |
 
-> **Resolution: 1/3 resolved, 1 persists, 1 superseded**
+> **Resolution: 1/4 resolved, 1 clarified, 1 persists, 1 superseded**
 ```
+
+### Step 5a: Read Discussion Replies Before Concluding `persists`
+
+For every finding whose code is unchanged (provisional `persists`), fetch the replies in its discussion thread and decide from them. Do this **before** the finding is written into the resolution table.
+
+1. **Fetch all discussion threads** from the platform API:
+   - **GitLab:**
+     ```bash
+     glab api "projects/<url-encoded-path>/merge_requests/<iid>/discussions"
+     ```
+     Each discussion has a `notes[]` array. The first note is the original comment; every later note in the same discussion is a reply. Match the discussion to the finding by `notes[0].position.new_path` + `new_line` (fall back to `old_path`/`old_line`), and by the comment label/text when positions are ambiguous.
+   - **GitHub:**
+     ```bash
+     gh api repos/{owner}/{repo}/pulls/{id}/comments
+     ```
+     Replies carry `in_reply_to_id` pointing at the root comment's `id`. Group by root, then match the root to the finding by `path` + `line`/`original_line` and label/text.
+
+2. **If the thread has no replies** → keep `⏳ persists`, Thread column = `no reply`. The author was silent and the code is unchanged — the issue stands.
+
+3. **If the thread has replies** → read every reply (author and any other participants) and judge them on two axes:
+   - **Accuracy** — is the factual claim true? Verify it against the actual source, not just the reply's wording. "Handled by the validator" only holds if you can confirm the validator actually covers this case. Treat unverifiable or contradicted claims as inaccurate.
+   - **Substance of the statement** — does the reply actually address the finding, or merely acknowledge / deflect it?
+
+   Decide:
+   - **Valid + accurate justification** (e.g. intentional design with a sound reason, the concern is already handled elsewhere and you confirmed it, the suggestion was considered and consciously rejected for a good reason) → mark **💬 clarified**. Do NOT re-flag. Record the gist of the justification and that you verified it in the Thread column.
+   - **Reply claims it was fixed**, and you can confirm the fix in the current code (possibly in a different file/line than the comment) → mark **✅ resolved**, note where the fix landed.
+   - **Reply is inaccurate, incomplete, or does not address the finding** (claim contradicted by the code, hand-waves, promises a future fix not yet present, or answers a different question) → keep **⏳ persists**. Capture *why* the reply fails in the Thread column (e.g. "author says validated upstream — not true, no validation on this path").
+   - **Reply asks a clarifying question or pushes back asking for rationale** → the finding is unresolved but conversational. Mark **⏳ persists** with Thread = `awaiting your answer`, and surface it in Step 8 so the verdict leans **Needs Discussion** and you can answer in-thread.
+
+4. **Responding to an inaccurate reply (optional, recommended):** when a `persists` finding has an inaccurate or evasive reply, prefer answering **in the existing thread** over posting a fresh inline comment, so the conversation stays threaded. Reply to the existing discussion rather than creating a new `DiffNote`, using the `discussion_id` from the thread you matched in Step 5a.1:
+   - **GitLab:**
+     ```bash
+     glab api --method POST \
+       "projects/<url-encoded-path>/merge_requests/<iid>/discussions/<discussion_id>/notes" \
+       --field body="<your reply>"
+     ```
+   - **GitHub:** reply to the root review comment by its `id`:
+     ```bash
+     gh api --method POST \
+       "repos/{owner}/{repo}/pulls/{id}/comments/<root_comment_id>/replies" \
+       -f body="<your reply>"
+     ```
+     (or `POST repos/{owner}/{repo}/pulls/{id}/comments` with `-F in_reply_to=<root_comment_id>`)
+
+   If threading the reply is not practical, fall back to a new inline comment that references the prior discussion succinctly. Either way, present it for approval in Step 8.
+
+> **Why this matters:** marking a finding `persists` is a claim that the author ignored or failed to address it. That claim must survive the author's own words. Reading the thread prevents two failure modes: (a) re-flagging something the author already justified correctly (noise, erodes trust), and (b) silently accepting an inaccurate "it's fine" reply (a real issue slips through). The status reflects *code + conversation*, not code alone.
 
 ### Step 6: Review New Changes
 
@@ -189,10 +241,12 @@ Draft inline comments for new issues only (same format/labels as `/review-mr` St
 ### Step 8: Present for Approval
 
 Present to the user:
-1. **Resolution table** from Step 5
-2. **New changes summary** from Step 6 (if applicable)
-3. **New draft comments** from Step 7 (if any)
-4. **Overall verdict**
+1. **Resolution table** from Step 5 — including the Thread column, so the user sees which `persists` findings had replies and why those replies did or didn't settle the finding
+2. **Thread-reply call-outs** — explicitly list any finding marked **💬 clarified** (and the justification you accepted) and any **⏳ persists** finding whose reply you judged inaccurate (and why). These are the decisions the user is most likely to want to override
+3. Any **in-thread responses** drafted in Step 5a.4 (replies to inaccurate author comments)
+4. **New changes summary** from Step 6 (if applicable)
+5. **New draft comments** from Step 7 (if any)
+6. **Overall verdict** — lean **Needs Discussion** when one or more findings are `awaiting your answer`
 
 Wait for user approval before posting.
 
@@ -235,12 +289,13 @@ Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Ste
 ## Round <N+1> — <YYYY-MM-DD>
 
 ### Previous Comments Resolution
-| # | Status | File | Comment |
-|---|--------|------|---------|
-| 1 | ✅ resolved | `src/auth.php:42` | Auth middleware added |
-| 2 | ⏳ persists | `src/user.php:15` | Still not extracted |
+| # | Status | File | Comment | Thread |
+|---|--------|------|---------|--------|
+| 1 | ✅ resolved | `src/auth.php:42` | Auth middleware added | — |
+| 2 | ⏳ persists | `src/user.php:15` | Still not extracted | author says "later PR" — not yet present |
+| 3 | 💬 clarified | `src/cache.php:30` | Intentional: TTL enforced upstream (verified) | author justified |
 
-> **Resolution: 1/2 resolved, 1 persists**
+> **Resolution: 1/3 resolved, 1 clarified, 1 persists**
 
 ### New Changes Summary
 <summary from Step 6, or "No new changes since last review.">
@@ -289,6 +344,9 @@ Use `gh api` with the Pull Request Review Comments API (same as `/review-mr` Ste
 - Review files (`reviews/` directory) are **internal-use only** — never commit, never reference externally
 - **NEVER** add `reviews/` to `.gitignore` — use `.git/info/exclude` instead
 - Do NOT re-post previous comments that persist — they are tracked in the resolution table only
+- **NEVER conclude a finding `persists` from code alone** — first read its discussion thread (Step 5a). A reply may justify the unchanged code (→ `💬 clarified`) or point to a fix elsewhere (→ `✅ resolved`). Only keep `persists` when there is no reply, or the reply is inaccurate / does not actually address the finding
+- **Verify thread claims against the source** — accept a justification only after confirming it is accurate; treat unverifiable or code-contradicted replies as inaccurate and keep the finding open
+- When a `persists` finding has an inaccurate reply, prefer responding **in the existing thread** over a new inline comment, and present that response for approval like any other comment
 - **ALWAYS** run the re-review inside the worktree at `~/.claude/worktrees/reviews/<repo-slug>/<gl|gh>-<id>/` — reuse it if it exists, recreate if it does not; never `git checkout` in the user's main working tree
 - **ALWAYS** update the sidecar `<gl|gh>-<id>.meta.json` with the new round/verdict
 - **Auto-remove the worktree (and its sidecar) only when the verdict is `approve`.** For any other verdict, keep both for the next round
