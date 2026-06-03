@@ -88,7 +88,7 @@ Spec files (`specs/` directory) are **internal-use only** — they exist to impr
 * The path, filename, or existence of a spec file must not appear anywhere outside `specs/` and the local conversation
 * Spec **content** can inform issues, MRs, and committed docs — but the file itself, its path, and its name must not be referenced
 * When creating a `specs/` directory in a project for the first time, automatically add `specs/` to `.git/info/exclude`
-* **Never write the reference in the first place** — this is the priority. Do not put spec item IDs (`FR-7`, `NFR-2`), spec paths, or provenance prose (`per FR-7`, `implements NFR-2`) into code, identifiers, comments, docblocks, log messages, strings, or commit messages. Describe the behavior, not the spec it came from. Scrubbing a leak after it is written is damage control, not the workflow
+* **Never write the reference in the first place** — this is the priority. Do not put spec item IDs (`G3`, `BR2`, slice numbers), spec paths, or provenance prose (`per G3`, `enforces BR2`) into code, identifiers, comments, docblocks, log messages, strings, or commit messages. Describe the behavior, not the spec it came from. Scrubbing a leak after it is written is damage control, not the workflow
 
 ## Review Files
 
