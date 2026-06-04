@@ -3,7 +3,7 @@ name: spec
 description: Create specification documents without implementing code. Uses a two-tier model — a plain-language business spec (parent) plus one technical spec per vertical slice (child). Generates the parent + first slice on a new requirement, and the next slice when resumed on an existing feature.
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Read, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Agent, AskUserQuestion, Skill
+allowed-tools: Read, Grep, Glob, Bash(git *), Bash(glab *), Bash(gh *), Bash(whoami), Agent, AskUserQuestion, Skill
 argument-hint: [feature-name or description]
 ---
 
@@ -52,7 +52,8 @@ specs/<feature-slug>/
 
 1. Read the project's `CLAUDE.md` for conventions.
 2. Explore the relevant parts of the **codebase** to ground the spec — current architecture, impacted modules, services, dependencies.
-3. **Do NOT read other spec files to copy their structure.** The templates in this skill are canonical; an existing spec must never override them. The only permitted spec-folder lookup is the existence check in Step 2.
+3. **Resolve `[Author]` from git** (see the Metadata Block below) and hold it for every spec file written this run.
+4. **Do NOT read other spec files to copy their structure.** The templates in this skill are canonical; an existing spec must never override them. The only permitted spec-folder lookup is the existence check in Step 2.
 
 ### Step 2: New Feature or Next Slice?
 
@@ -107,12 +108,20 @@ Write `NN-<slug>.md` using the matching child template below. Every child opens 
 
 ## Metadata Block
 
-Every spec — parent and child — MUST start with this block immediately under the H1 title. Use `<br>` between bold lines per global Markdown rules. `Date` is today's date (ISO). `Status` is one of: `Draft`, `In Review`, `Approved`, `In Progress`, `Done`, `Blocked`. `Author` is `Frank`.
+Every spec — parent and child — MUST start with this block immediately under the H1 title. Use `<br>` between bold lines per global Markdown rules. `Date` is today's date (ISO). `Status` is one of: `Draft`, `In Review`, `Approved`, `In Progress`, `Done`, `Blocked`.
+
+`Author` is **resolved from git, never hardcoded** — its value is the `[Author]` placeholder used throughout the templates below. Compute it once at the start of the run (Step 1) and reuse it in every spec file:
+
+1. **Name** — `git -C <repo-root> config user.name`. Running through the repo root means a repo-local identity wins, falling back to the global config.
+2. **Identifier (parens)** — `git -C <repo-root> config user.email`; if empty, fall back to the system username (`whoami`).
+3. **Compose** `[Author]` as `Name (identifier)` — e.g. `Franklin Esquivel (franklin.esquivel@outlook.com)`, or `Franklin Esquivel (frank)` when no email is set.
+   - If **Name** is empty, use the identifier alone.
+   - If everything is empty, use `Unknown`.
 
 ```markdown
 **Date:** YYYY-MM-DD<br>
 **Status:** Draft<br>
-**Author:** Frank
+**Author:** [Author]
 ```
 
 ---
@@ -124,7 +133,7 @@ Every spec — parent and child — MUST start with this block immediately under
 
 **Date:** YYYY-MM-DD<br>
 **Status:** Draft<br>
-**Author:** Frank
+**Author:** [Author]
 
 ## Context
 The problem today; why this matters now. Plain language, no jargon.
@@ -181,7 +190,7 @@ Every child starts with the metadata block and a `## Serves` section. `Serves` r
 
 **Date:** YYYY-MM-DD<br>
 **Status:** Draft<br>
-**Author:** Frank
+**Author:** [Author]
 
 ## Serves
 - Goals: ...
@@ -231,7 +240,7 @@ Unresolved decisions or items needing clarification.
 
 **Date:** YYYY-MM-DD<br>
 **Status:** Draft<br>
-**Author:** Frank
+**Author:** [Author]
 
 ## Serves
 - Goals: ...
@@ -286,7 +295,7 @@ Unresolved decisions or items needing clarification.
 
 **Date:** YYYY-MM-DD<br>
 **Status:** Draft<br>
-**Author:** Frank
+**Author:** [Author]
 
 ## Serves
 - Goals: ...
@@ -342,7 +351,7 @@ Unresolved decisions or items needing clarification.
 
 **Date:** YYYY-MM-DD<br>
 **Status:** Draft<br>
-**Author:** Frank
+**Author:** [Author]
 
 ## Serves
 - Goals: ...
@@ -402,7 +411,7 @@ Unresolved decisions or items needing clarification.
 
 **Date:** YYYY-MM-DD<br>
 **Status:** Draft<br>
-**Author:** Frank
+**Author:** [Author]
 
 ## Serves
 - Goals: ...
