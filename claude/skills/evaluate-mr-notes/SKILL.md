@@ -1,6 +1,6 @@
 ---
 name: evaluate-mr-notes
-description: Evaluate unresolved review notes on a GitLab MR against the current codebase, commit valid fixes grouped by file/concern, then reply "Addressed on {sha}" on each addressed thread. For invalid notes, drafts a reply in the original note language and lets the user post via glab or copy to clipboard.
+description: Evaluate unresolved review notes on a GitLab MR against the current codebase, commit valid fixes grouped by file/concern, then — after the user confirms the commits are pushed — reply "Addressed on {sha}" on each addressed inline thread. CodeRabbit summary-note observations (outside-diff/nitpick/duplicate) are fixed but never replied to, since their parent summary discussion doesn't thread. For invalid notes, drafts a reply in the original note language and lets the user post via glab or copy to clipboard.
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git *), Bash(glab *), Bash(python3 *), Bash(jq *), Bash(pbcopy), Bash(mkdir *), Task
@@ -18,7 +18,7 @@ Given an MR ID and a reviewer name, this skill:
 2. Validates each note against the **current codebase HEAD**
 3. Presents a verdict table for batch approval
 4. Implements + commits accepted fixes (grouped by file/concern)
-5. Replies `Addressed on {sha}` on threads whose notes were addressed
+5. After the user confirms the fixes are pushed, replies `Addressed on {sha}` on **inline** threads whose notes were addressed (CodeRabbit summary-note observations are committed but **never replied to** — their parent summary discussion doesn't thread correctly)
 6. For invalid notes, drafts a reply in the original note language and offers to post via `glab` or copy via `pbcopy`
 
 This skill is **GitLab-only**.
@@ -107,7 +107,7 @@ Each discussion has `id`, `notes[]`. For each discussion:
 - A thread is **resolvable** if any note has `resolvable: true`.
 - A thread is **resolved** if `notes[0].resolved == true` (GitLab marks all notes in a resolved thread).
 - Capture the **first note** of each thread as the "review note" (the rest are replies).
-- Also retain the **`discussion_id`** of every note authored by the reviewer — it is the target for `Addressed on {sha}` replies, including replies for parsed sub-observations (Step 3b).
+- Also retain the **`discussion_id`** of every note authored by the reviewer — for **inline** threads it is the target for `Addressed on {sha}` replies. (Parsed sub-observations from Step 3b are fixed but **not** replied to — see Step 8a.)
 
 ### Step 3b: Parse CodeRabbit Summary Notes (only when `--reviewer coderabbit`)
 
@@ -161,7 +161,7 @@ For each observation extract:
 | `parent_note_id`  | The CodeRabbit summary note's `id`                                                           |
 | `parent_discussion_id` | The `discussion_id` of the discussion that contains the summary note                    |
 
-Treat each parsed observation as a **virtual note** for the rest of the flow (Step 5 evaluation, Step 6 verdict table, Step 7 commits, Step 8 replies).
+Treat each parsed observation as a **virtual note** for the rest of the flow (Step 5 evaluation, Step 6 verdict table, Step 7 commits). Virtual notes are **not** replied to in Step 8 — they are committed only.
 
 #### Virtual-note keys
 
@@ -249,11 +249,18 @@ For each commit group approved in Step 6:
 
 ### Step 8: Reply on Threads
 
-For each thread:
+> **Push gate.** Replies that reference a commit SHA must not be posted until those commits exist on the remote. After Step 7 commits, if there are any addressed **inline** replies to post (8a), prompt the user and wait:
+>
+> > Fixes committed locally. Push them, then confirm so I can post the `Addressed on {sha}` replies.
+> > Pushed? (**yes** / **not yet**)
+>
+> - Wait for an explicit **yes** before posting any 8a reply. Do **not** push on the user's behalf (global rule).
+> - If the user says **not yet**, hold and re-prompt when they're ready — do not post.
+> - Invalid-note replies (8b) don't reference a SHA, so they need not wait on the push, but still respect the per-reply confirmation below.
 
-#### 8a. Addressed threads (valid → committed)
+#### 8a. Addressed inline threads (valid → committed)
 
-Post a reply on the discussion with body `Addressed on {short-sha}`:
+**Inline notes only** (`DiffNote` / `DiscussionNote`). Post a reply on the discussion with body `Addressed on {short-sha}`:
 
 ```bash
 glab api --method POST \
@@ -261,11 +268,7 @@ glab api --method POST \
   --field "body=Addressed on ${SHORT_SHA}"
 ```
 
-For **virtual notes** (Step 3b — CodeRabbit outside-diff / nitpick observations), the target discussion is the **parent CodeRabbit summary note's discussion** (`parent_discussion_id`). Post **one reply per addressed observation** — do not consolidate. To keep replies traceable across multiple observations on the same parent discussion, qualify the body with the observation's location:
-
-```
-Addressed on {short-sha} — {file}:{line_range}
-```
+**Do not post replies for virtual notes** (Step 3b — CodeRabbit outside-diff / nitpick / duplicate observations). Their only reply target is the parent CodeRabbit summary discussion (`parent_discussion_id`), which is a non-threading summary note — a reply there does not surface on the right conversation. These observations are still evaluated, fixed, and committed; they are simply left **unreplied**. List the addressed virtual notes (with their SHAs) in the Step 10 summary so the user keeps the record.
 
 Do **not** resolve the thread — the reviewer resolves on their end.
 
@@ -276,6 +279,8 @@ For each invalid-note reply drafted in Step 5, ask the user **per reply** (or ba
 > Post reply for thread `<id>` via `glab` or copy to clipboard?
 > - **Post** → run the `glab api` POST above with the drafted body
 > - **Copy** → `printf '%s' "<body>" | pbcopy` and tell the user it's on the clipboard
+
+For **virtual notes**, skip the **Post** option entirely — there is no correctly-threading target on the summary discussion. Offer only **Copy** (or list the draft in the Step 10 summary) so the user can paste it wherever it belongs.
 
 #### 8c. Uncertain threads
 
@@ -352,7 +357,8 @@ Rules:
 ### Step 10: Final Summary
 
 Print:
-- Threads addressed (with commit SHAs)
+- Inline threads addressed **and replied** (with commit SHAs)
+- CodeRabbit summary-note observations addressed but **left unreplied** (with commit SHAs + `{file}:{line_range}`) — these are the outside-diff / nitpick / duplicate fixes the user can manually mark resolved on CodeRabbit's side
 - Invalid replies posted vs copied
 - Uncertain threads left for the user
 - Sidecar updated at `reviews/eval-{mr-id}.md` (mention path only in-session — never in committed artifacts)
@@ -363,6 +369,8 @@ Print:
 - **GitLab only.** Abort if remote is not GitLab.
 - **`--reviewer` is required.** No silent defaults.
 - **Never push.** Commit only; the user pushes manually.
+- **Push gate before addressed replies.** Do not post any `Addressed on {sha}` reply until the user confirms the commits are pushed (Step 8 prompt). The SHA must exist on the remote first.
+- **Never reply on CodeRabbit summary-note observations** (outside-diff / nitpick / duplicate virtual notes). Their parent summary discussion doesn't thread, so any reply lands on the wrong conversation. Still evaluate, fix, and commit them — just leave them unreplied and report them in the final summary.
 - **Never auto-resolve threads.** Replies only.
 - **Respect the original note language** when drafting replies for invalid notes — detect from the note body; do not switch language based on session output.
 - **Read current code, not the note's quoted snippet** — notes may be stale.
