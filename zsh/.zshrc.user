@@ -106,6 +106,17 @@ oidc-bearer() { "$HOME/.claude/scripts/oidc-bearer.sh" "$@"; }
 #   oidc-curl --tenant <tenant> [-u <alias>] -- GET http://127.0.0.1:PORT/path
 oidc-curl() { "$HOME/.claude/scripts/oidc-curl.sh" "$@"; }
 
+# db-agent: connect to locally-reachable DBs (Postgres/MySQL) for audits, data
+# retrieval, and guarded executions. HUMAN-only convenience wrapper — the agent
+# calls the script by absolute path. The target lifecycle commands are
+# interactive and seed the Keychain, so you run them here, not the agent:
+#   db-agent list                          # global alias registry (no secrets)
+#   db-agent target add                    # register a DB (interactive)
+#   db-agent target set-password <alias>   # rotate the Keychain password
+#   db-agent sql   <alias> -- "<SELECT …>" # read channel
+#   db-agent write <alias> [--commit] -- "<SQL>"  # txn, rolls back unless --commit
+db-agent() { "$HOME/.claude/scripts/db-agent.sh" "$@"; }
+
 # -----------------------------------------------------------------------------
 # Secrets (API Keys, Tokens)
 # -----------------------------------------------------------------------------
