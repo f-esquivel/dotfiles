@@ -46,6 +46,7 @@ Suffix determines visibility and tracking:
 | `dotfiles/claude/settings.json` | `~/.claude/settings.json` |
 | `dotfiles/claude/CLAUDE.md`     | `~/.claude/CLAUDE.md`   |
 | `dotfiles/claude/skills/`       | `~/.claude/skills`      |
+| `dotfiles/claude/agents/`       | `~/.claude/agents`      |
 | `dotfiles/claude/hooks/`        | `~/.claude/hooks`       |
 | `dotfiles/claude/scripts/`      | `~/.claude/scripts`     |
 | `dotfiles/claude/statusline.sh` | `~/.claude/statusline.sh` |
@@ -94,8 +95,9 @@ Do NOT run `brew bundle dump --force` — it destroys the manual organization.
 | `claude/CLAUDE.md`     | Global instructions (workflow rules, git platform detection)                                    |
 | `claude/commands/`     | Global slash commands (currently empty — migrated to skills)                                    |
 | `claude/skills/`       | Global slash-command skills — one dir each, self-documented via `SKILL.md` frontmatter (`/commit`, `/spec`, `/review-mr`, …)            |
-| `claude/hooks/`        | Hook scripts (commit validation)                                                                |
-| `claude/scripts/`      | Helper scripts (GitLab review posting, review-worktree management)                              |
+| `claude/agents/`       | Subagent definitions — `.md` with frontmatter (`oidc-token`, `db-agent`)                         |
+| `claude/hooks/`        | Hook scripts (commit validation, `oidc-guard`, `db-guard`)                                       |
+| `claude/scripts/`      | Helper scripts (GitLab review posting, review-worktree, `oidc-token.sh`, `db-agent.sh`)          |
 | `claude/statusline.sh` | Custom status bar                                                                               |
 
 ### Review History (per-project, never committed)
