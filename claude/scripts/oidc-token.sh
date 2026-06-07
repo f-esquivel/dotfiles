@@ -214,7 +214,7 @@ main() {
     case "${1:-}" in
         list)           cmd_list ;;
         tenant)         shift; cmd_tenant "$@" ;;
-        -h|--help)      sed -n '2,65p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
+        -h|--help)      sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
         *)              cmd_fetch "$@" ;;
     esac
 }
