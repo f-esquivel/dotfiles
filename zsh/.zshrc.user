@@ -83,13 +83,26 @@ alias claude="claude --dangerously-skip-permissions"
 alias cc="CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude"
 alias cc1m="claude"
 
-# OIDC bearer token for manual API testing (Keycloak), e.g.:
+# OIDC token tooling (Keycloak) — interactive wrappers around ~/.claude/scripts.
+# These functions are for HUMAN use at an interactive prompt; agents call the
+# scripts by absolute path instead (a non-interactive subagent shell doesn't
+# source this file). Pipeline: oidc-token mints/manages → oidc-bearer prints →
+# oidc-curl consumes.
+
+# oidc-token: mint a token (metadata only — never prints the token) and manage
+# tenants/clients/users, e.g.:
+#   oidc-token list                        # tenants/clients/users (no secrets)
+#   oidc-token --tenant <id> [-u <alias>]  # mint; prints metadata only
+#   oidc-token tenant add                  # interactive registration
+oidc-token() { "$HOME/.claude/scripts/oidc-token.sh" "$@"; }
+
+# oidc-bearer: print the cached raw token for piping into your own curl. The ONE
+# command that emits a token, so it's human-only (the agent guard blocks it):
 #   curl -H "Authorization: Bearer $(oidc-bearer <tenant> [-c <client>] [-u <alias>])" https://api...
-# Tokens are minted by ~/.claude/scripts/oidc-token.sh (or the oidc-token agent).
 oidc-bearer() { "$HOME/.claude/scripts/oidc-bearer.sh" "$@"; }
 
 # oidc-curl: mint + make a loopback request in one step, returning only the
-# response body (token never surfaces), e.g.:
+# response body (token never surfaces; non-loopback targets are refused):
 #   oidc-curl --tenant <tenant> [-u <alias>] -- GET http://127.0.0.1:PORT/path
 oidc-curl() { "$HOME/.claude/scripts/oidc-curl.sh" "$@"; }
 
