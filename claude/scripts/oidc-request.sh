@@ -65,7 +65,16 @@ oidc_request() {
     http_code="${resp##*$'\n'}"
     body="${resp%$'\n'*}"
 
-    if [ "$http_code" -ge 400 ] 2>/dev/null; then
+    # A non-numeric status means curl returned something unexpected — fail loudly
+    # rather than fall through and report a vague "no access_token".
+    case "$http_code" in
+        ''|*[!0-9]*)
+            echo "Error: unexpected response from '$token_endpoint' (no HTTP status)" >&2
+            return 4
+            ;;
+    esac
+
+    if [ "$http_code" -ge 400 ]; then
         local err err_desc
         err="$(printf '%s' "$body" | jq -r '.error // "http_'"$http_code"'"' 2>/dev/null)"
         err_desc="$(printf '%s' "$body" | jq -r '.error_description // ""' 2>/dev/null)"

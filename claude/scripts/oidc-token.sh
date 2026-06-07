@@ -89,6 +89,7 @@ require_deps() {
 # --------------------------------------------------------------------------- #
 cmd_list() {
     [ -f "$OIDC_TENANTS_FILE" ] || { echo '[]'; return; }
+    jq -e . "$OIDC_TENANTS_FILE" >/dev/null 2>&1 || die "invalid JSON in $OIDC_TENANTS_FILE" 3
     jq '
       to_entries | map({
         tenant: .key,
@@ -128,7 +129,12 @@ cmd_fetch() {
     local tobj; tobj="$(load_tenant "$tenant")"
 
     [ -n "$client" ] || client="$(printf '%s' "$tobj" | jq -r '.defaultClient // empty')"
-    [ -n "$client" ] || die "no --client given and tenant '$tenant' has no defaultClient" 1
+    if [ -z "$client" ]; then
+        if [ -n "$user_arg" ]; then
+            die "impersonating '$user_arg' needs a client with the 'password' grant, but tenant '$tenant' has no client configured — add one with: oidc-token.sh tenant add-client $tenant" 3
+        fi
+        die "no --client given and tenant '$tenant' has no defaultClient — add a client with: oidc-token.sh tenant add-client $tenant" 1
+    fi
     local cobj
     cobj="$(printf '%s' "$tobj" | jq -c --arg c "$client" '.clients[$c] // empty')"
     [ -n "$cobj" ] || die "tenant '$tenant' has no client '$client'" 3
@@ -160,7 +166,7 @@ cmd_fetch() {
     supported="$(printf '%s' "$cobj" | jq -r '(.grants // []) | join(" ")')"
     case " $supported " in
         *" $grant "*) ;;
-        *) die "client '$client' does not support '$grant' (supports: ${supported:-none})" 3 ;;
+        *) die "client '$client' does not support '$grant' (supports: ${supported:-none}) — add or pick a client with the '$grant' grant: oidc-token.sh tenant add-client $tenant" 3 ;;
     esac
 
     local issuer token_endpoint
@@ -176,10 +182,14 @@ cmd_fetch() {
     expires_in="$(printf '%s\n' "$fetched" | sed -n '1p')"
     access_token="$(printf '%s\n' "$fetched" | sed -n '2p')"
     [ -n "$access_token" ] || die "response contained no access_token" 4
+    # Coerce to a plain integer so the metadata jq below (--argjson) can't choke
+    # on an oddly-shaped expires_in after the token is already in hand.
+    case "$expires_in" in ''|*[!0-9]*) expires_in=0 ;; esac
 
     mkdir -p "$OIDC_RUN_DIR"
     local token_file; token_file="$(oidc_token_path "$tenant" "$client" "$alias")"
-    ( umask 077; printf '%s' "$access_token" > "$token_file" )
+    ( umask 077; printf '%s' "$access_token" > "$token_file" ) \
+        || die "minted a token but failed to write the cache file '$token_file'" 4
     chmod 600 "$token_file"
 
     # Keep the run dir bounded: drop cached tokens older than 12h.

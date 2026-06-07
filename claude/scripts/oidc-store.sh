@@ -125,9 +125,16 @@ discover_token_endpoint() {  # tenant issuer refresh
     local tenant="$1" issuer="$2" refresh="$3"
     local cache="$OIDC_CACHE_DIR/$tenant.json"
     mkdir -p "$OIDC_CACHE_DIR"
-    if [ "$refresh" = "1" ] || [ ! -s "$cache" ]; then
+    # Re-download when forced, missing, or the cached copy isn't valid JSON — a
+    # poisoned cache (e.g. an HTML error page served with 200) must not stick.
+    if [ "$refresh" = "1" ] || [ ! -s "$cache" ] || ! jq -e . "$cache" >/dev/null 2>&1; then
         curl -fsS "${issuer%/}/.well-known/openid-configuration" -o "$cache.tmp" \
             || die "OIDC discovery failed for issuer '$issuer'" 4
+        # Validate BEFORE caching so we never persist garbage.
+        if ! jq -e . "$cache.tmp" >/dev/null 2>&1; then
+            rm -f "$cache.tmp"
+            die "OIDC discovery for issuer '$issuer' returned invalid JSON" 4
+        fi
         mv "$cache.tmp" "$cache"
     fi
     jq -r '.token_endpoint // empty' "$cache"
