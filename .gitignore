@@ -22,6 +22,9 @@ git/.gitconfig.*
 !*.secrets.template
 *password*
 *token*
+# OIDC token *tooling* is tracked; cached tokens live in ~/.claude/oidc/ (outside the repo)
+!claude/scripts/oidc-token.sh
+!claude/agents/oidc-token.md
 *.pem
 *.key
 .env

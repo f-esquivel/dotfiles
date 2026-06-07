@@ -10,6 +10,9 @@
     ],
     "ask": [
       "Bash(git commit:*)"
+    ],
+    "allow": [
+      "Bash(~/.claude/scripts/oidc-token.sh:*)"
     ]
   },
   "hooks": {
@@ -21,6 +24,21 @@
             "type": "command",
             "command": "~/.claude/hooks/validate-commit.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/oidc-guard.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/oidc-guard.sh",
+            "timeout": 5
           }
         ]
       }

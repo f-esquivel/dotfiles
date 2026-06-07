@@ -83,6 +83,11 @@ alias claude="claude --dangerously-skip-permissions"
 alias cc="CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude"
 alias cc1m="claude"
 
+# OIDC bearer token for manual API testing (Keycloak), e.g.:
+#   curl -H "Authorization: Bearer $(oidc-bearer <tenant> [-c <client>] [-u <alias>])" https://api...
+# Tokens are minted by ~/.claude/scripts/oidc-token.sh (or the oidc-token agent).
+oidc-bearer() { "$HOME/.claude/scripts/oidc-bearer.sh" "$@"; }
+
 # -----------------------------------------------------------------------------
 # Secrets (API Keys, Tokens)
 # -----------------------------------------------------------------------------
