@@ -12,6 +12,10 @@
 # This separation is deliberate: Claude/agents can invoke this script to mint a
 # token, but the plaintext token never enters a tool result the model reads.
 #
+# To CALL a loopback API rather than just mint, use the sibling oidc-curl.sh: it
+# mints (delegating here) and makes the request in one step, returning only the
+# response body — prefer it over minting here and consuming the token separately.
+#
 # HANDLE WITH CARE — this is an impersonation device. It mints real bearer
 # tokens (incl. user-password grants) against whatever issuer a tenant points
 # at. It is environment-agnostic: it does not know or care whether an issuer is
@@ -57,7 +61,7 @@
 # Exit: 0 ok · 1 usage · 2 missing dependency · 3 config error · 4 token request failed
 #
 # Implementation is split across sibling modules (all sourced below):
-#   oidc-lib.sh      shared paths + token-cache key (also used by oidc-bearer.sh)
+#   oidc-lib.sh      shared paths + token-cache key (also used by oidc-bearer/curl.sh)
 #   oidc-store.sh    tenants.json I/O, Keychain, OIDC discovery
 #   oidc-request.sh  the token request + smoke verify (the only secret-touching code)
 #   oidc-manage.sh   interactive tenant/client/user administration

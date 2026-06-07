@@ -2,8 +2,21 @@
 # oidc-lib.sh — Shared helpers for the OIDC tenant token scripts.
 #
 # This file is meant to be SOURCED, not executed. It holds the paths and the
-# token-cache key logic shared by oidc-token.sh (fetcher/manager) and
-# oidc-bearer.sh (raw-token printer).
+# token-cache key logic shared by the three entry-point scripts:
+#   oidc-token.sh    fetcher/manager    — mints a token, prints metadata only
+#   oidc-bearer.sh   raw-token printer  — emits the cached token to stdout
+#   oidc-curl.sh     loopback requester — mints + consumes, prints response body
+#
+# Who calls what, and why there are two ways to invoke these:
+#   - Agents (Claude) call the scripts by ABSOLUTE PATH (~/.claude/scripts/*.sh).
+#     A subagent shell is non-interactive and does NOT source ~/.zshrc, so the
+#     oidc-* shell functions don't exist there — only the full path is reliable.
+#     Agents may run oidc-token.sh and oidc-curl.sh; the guard BLOCKS them from
+#     oidc-bearer.sh (a raw token would land in model context).
+#   - Humans use the oidc-* shell functions (defined in zsh/.zshrc.user) at an
+#     interactive prompt. oidc-bearer is human-only: it's how the handed-off
+#     `curl -H "...$(oidc-bearer ...)"` consume string resolves a real token in
+#     your own terminal, never in a tool result the model reads.
 #
 # Compat: targets bash 3.2 (macOS system /bin/bash).
 
