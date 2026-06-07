@@ -109,6 +109,13 @@ The `/graphify` skill builds a queryable knowledge graph from any folder of file
 * When `graphify-out/` is first created in a project, automatically add `graphify-out/` to `.git/info/exclude`
 * **Prefer the existing graph** — when the user asks a natural-language question about the codebase AND `graphify-out/graph.json` exists, answer via `graphify query "<question>"` rather than manual grep/exploration. Reserve fresh extraction for explicit rebuilds (`--update`, `--cluster-only`, a bare path/URL)
 
+## Custom Agents
+
+Prefer dispatching the matching subagent over hand-rolling the operation — the agents route through guarded resolvers (Keychain-backed secrets, audit logging, safety deny-lists) that ad-hoc commands bypass.
+
+* **DB work** — Postgres/MySQL audits, queries, schema introspection, executions against a locally-reachable database → dispatch `db-agent`. Never hand-roll `psql`/`mysql` for this; the `db-guard` hook blocks raw clients aimed at non-loopback hosts regardless. Targets are aliases in the global registry (`db-agent list`); writes roll back unless the user explicitly asks to persist.
+* **OIDC tokens** — minting an M2M token or impersonating a user (password grant) for manual API testing → dispatch `oidc-token`. Never print tokens into context; the `oidc-guard` hook blocks the raw-token printer.
+
 ## Git Rules
 
 * `git push` is **blocked** globally — never attempt to push. The user will push manually when ready

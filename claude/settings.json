@@ -12,7 +12,8 @@
       "Bash(git commit:*)"
     ],
     "allow": [
-      "Bash(~/.claude/scripts/oidc-token.sh:*)"
+      "Bash(~/.claude/scripts/oidc-token.sh:*)",
+      "Bash(~/.claude/scripts/db-agent.sh:*)"
     ]
   },
   "hooks": {
@@ -28,6 +29,11 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/oidc-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/db-guard.sh",
             "timeout": 5
           }
         ]
