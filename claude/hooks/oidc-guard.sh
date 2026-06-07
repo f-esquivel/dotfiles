@@ -7,7 +7,9 @@
 #   - running the raw-token printer (oidc-bearer)
 #   - extracting a secret straight from the Keychain (security ... -w/-g)
 #   - running curl verbosely (--trace / -v), which dumps Authorization headers
-# Everything else (including oidc-token.sh, which only emits metadata) passes.
+# Everything else passes — including oidc-token.sh (emits metadata only) and
+# oidc-curl.sh (mints + consumes a loopback request, returning only the response
+# body with the token scrubbed, so the token never enters context).
 #
 # Known gap: the verbose-curl rule matches -v/--verbose/--trace as whole words
 # only, so bundled short forms (curl -sv / -fsSv) slip through — the tradeoff
@@ -25,7 +27,10 @@ FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null
 deny() {
     echo "BLOCKED by oidc-guard: $1." >&2
     echo "OIDC tokens/secrets must never enter model context." >&2
-    echo "Have the user run it in their terminal instead, e.g.:" >&2
+    echo "To make an authenticated request from inside an agent, use the guarded" >&2
+    echo "wrapper (loopback only, token never surfaces):" >&2
+    echo '  oidc-curl --tenant <tenant> [--user <alias>] -- GET http://127.0.0.1:PORT/path' >&2
+    echo "Otherwise have the user run it in their terminal, e.g.:" >&2
     echo '  curl -H "Authorization: Bearer $(oidc-bearer <tenant> [client] [alias])" https://api...' >&2
     exit 2
 }
@@ -42,9 +47,14 @@ if printf '%s' "$CMD" | grep -qE '\.claude/oidc/run/[^[:space:]]*\.token'; then
     deny "referencing a cached OIDC token file"
 fi
 
-# The raw-token printer (script, full path, or shell alias). Substring match:
-# "oidc-bearer" is specific enough that any occurrence is a deliberate attempt.
-if printf '%s' "$CMD" | grep -qF 'oidc-bearer'; then
+# The raw-token printer (script, full path, or shell alias). Match an EXECUTION,
+# not a mere mention: the name must sit in command position — at the start, after
+# a separator/operator (; & | && || newline), inside a `(`/`{` group or a `$(`/
+# backtick substitution, optionally behind a path and/or an interpreter prefix
+# (bash/sh/exec/…). This lets innocent text — a grep pattern, a heredoc, an
+# `echo "see oidc-bearer"` — through, while still catching the ways it actually
+# runs. (Agents that need an authenticated request should use oidc-curl instead.)
+if printf '%s' "$CMD" | grep -qE '(^|[;&|`({]|&&|\|\||\$\()[[:space:]]*((bash|sh|zsh|ksh|dash|source|exec|command|eval|env|xargs)[[:space:]]+)?([[:alnum:]._/~+-]*/)?oidc-bearer(\.sh)?([[:space:]]|$|[;&|)`])'; then
     deny "running the raw-token printer (oidc-bearer)"
 fi
 
@@ -60,10 +70,12 @@ fi
 # Verbose/tracing curl leaks the Authorization header into output. Match the
 # verbose flags as whole words (boundary on both sides) so unrelated tokens such
 # as `grep -iv` or `sort -v` inside the same command line don't false-trigger.
-# Note: bundled short forms like `curl -sv`/`-fsSv` are intentionally NOT caught
-# — they're indistinguishable from `grep -iv` by token alone, and -v/--verbose/
-# --trace cover the verbose invocations worth guarding against.
-if printf '%s' "$CMD" | grep -qE 'curl([[:space:]]|$)' \
+# The `curl` token is anchored on its left (start / space / path-slash) so the
+# safe wrapper `oidc-curl` is NOT mistaken for `curl` — otherwise `command -v
+# oidc-curl` would trip on the `-v`. Note: bundled short forms like `curl -sv`/
+# `-fsSv` are intentionally NOT caught — they're indistinguishable from `grep
+# -iv` by token alone, and -v/--verbose/--trace cover what's worth guarding.
+if printf '%s' "$CMD" | grep -qE '(^|[[:space:]]|/)curl([[:space:]]|$)' \
    && printf '%s' "$CMD" | grep -qE '(^|[[:space:]])(-vv?|--verbose|--trace(-ascii)?)([[:space:]]|=|$)'; then
     deny "verbose curl can leak Authorization headers"
 fi
