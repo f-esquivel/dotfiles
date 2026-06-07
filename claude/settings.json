@@ -60,7 +60,7 @@
     "gopls-lsp@claude-plugins-official": true,
     "coderabbit@claude-plugins-official": true
   },
-  "effortLevel": "medium",
+  "effortLevel": "high",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "voiceEnabled": false,
