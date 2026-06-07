@@ -88,6 +88,11 @@ alias cc1m="claude"
 # Tokens are minted by ~/.claude/scripts/oidc-token.sh (or the oidc-token agent).
 oidc-bearer() { "$HOME/.claude/scripts/oidc-bearer.sh" "$@"; }
 
+# oidc-curl: mint + make a loopback request in one step, returning only the
+# response body (token never surfaces), e.g.:
+#   oidc-curl --tenant <tenant> [-u <alias>] -- GET http://127.0.0.1:PORT/path
+oidc-curl() { "$HOME/.claude/scripts/oidc-curl.sh" "$@"; }
+
 # -----------------------------------------------------------------------------
 # Secrets (API Keys, Tokens)
 # -----------------------------------------------------------------------------
