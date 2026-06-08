@@ -44,6 +44,7 @@ PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 # shellcheck source=db-lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/db-lib.sh"
+LOG_SCRIPT="db-agent"   # identifies this writer in the centralized log
 
 die()   { echo "Error: $1" >&2; exit "${2:-1}"; }
 note()  { echo "$1" >&2; }   # diagnostics to stderr — keeps query stdout clean
@@ -170,13 +171,13 @@ dispatch_sql() {  # dispatch_sql <mode:read|write> <commit:0|1> <csv> <sql>
 
     # Nuclear floor applies to both channels.
     if reason="$(scan_nuclear "$sql")"; then
-        db_audit "$ALIAS	$mode	DENIED:nuclear($reason)"
+        db_audit denied "$mode" "alias=$ALIAS" "reason=nuclear:$reason"
         die "DENIED — $reason. Blocked below the agent's reach; not overridable." 4
     fi
 
     if [ "$mode" = "read" ]; then
         if reason="$(scan_mutates "$sql")"; then
-            db_audit "$ALIAS	read	DENIED:mutation"
+            db_audit denied read "alias=$ALIAS" "reason=mutation"
             die "DENIED — $reason" 4
         fi
         body="$sql"
@@ -199,7 +200,7 @@ $verb;"
         fi
     fi
 
-    db_audit "$ALIAS	$mode	commit=$commit	ok"
+    db_audit info "$mode" "alias=$ALIAS" "commit=$commit" "kind=${KIND:-}"
     if [ "$ENGINE" = "postgres" ]; then run_pg   "$body" "$csv" "$ro"
     else                                run_mysql "$body" "$csv"; fi
 

@@ -14,8 +14,13 @@
 # Root of all local, never-committed DB-agent state. Overridable via $DB_HOME.
 : "${DB_HOME:=$HOME/.claude/db}"
 DB_TARGETS_FILE="$DB_HOME/targets.json"
-# Audit log — alias + operation only, NEVER a resolved connection string / secret.
-DB_ACCESS_LOG="$HOME/.claude/db-access.log"
+
+# Centralized structured logging — shared line shape with the oidc agent + guards.
+# Audit lines carry alias + operation + verdict only, NEVER a resolved connection
+# string / secret. See log-lib.sh for the schema.
+# shellcheck source=log-lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/log-lib.sh"
+: "${LOG_AGENT:=db}"
 
 # Keychain service for a target's password. account = the target's db user.
 # Mirrors the oidc scripts' "service:scope" convention.
@@ -60,8 +65,7 @@ db_write_targets() {
     ( umask 077; printf '%s\n' "$1" > "$tmp" ) && mv "$tmp" "$DB_TARGETS_FILE"
 }
 
-# Append an audit line. Caller passes only non-sensitive fields (alias, op, verdict).
-db_audit() {
-    mkdir -p "$(dirname "$DB_ACCESS_LOG")"
-    printf '%s\t%s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$1" >> "$DB_ACCESS_LOG"
-}
+# Append an audit line as structured JSONL. Thin wrapper over log_event so the DB
+# agent and the oidc agent share one writer/format.
+#   db_audit <level> <op> [k=v ...]   (e.g. db_audit info read alias=foo commit=0)
+db_audit() { log_event "$@"; }
