@@ -96,8 +96,8 @@ Do NOT run `brew bundle dump --force` — it destroys the manual organization.
 | `claude/commands/`     | Global slash commands (currently empty — migrated to skills)                                    |
 | `claude/skills/`       | Global slash-command skills — one dir each, self-documented via `SKILL.md` frontmatter (`/commit`, `/spec`, `/review-mr`, …)            |
 | `claude/agents/`       | Subagent definitions — `.md` with frontmatter (`oidc-token`, `db-agent`)                         |
-| `claude/hooks/`        | Hook scripts (commit validation, `oidc-guard`, `db-guard`)                                       |
-| `claude/scripts/`      | Helper scripts (GitLab review posting, review-worktree, `oidc-token.sh`, `db-agent.sh`)          |
+| `claude/hooks/`        | Hook scripts (commit validation, `oidc-guard`, `db-guard` — guards log every block)             |
+| `claude/scripts/`      | Helper scripts (GitLab review posting, review-worktree, `oidc-token.sh`, `db-agent.sh`, `log-lib.sh`) |
 | `claude/statusline.sh` | Custom status bar                                                                               |
 
 ### Review History (per-project, never committed)
@@ -115,6 +115,20 @@ Created by `/review-mr` and `/re-review-mr`:
 - **Auto-cleanup:** worktree removed only when verdict is `approve`. Other verdicts keep the worktree for the next round
 - **Manual cleanup:** `/cleanup-review-worktrees` (interactive, supports `--older-than N`, `--repo <slug>`, `--merged`)
 - **Helper script:** `claude/scripts/review-worktree.sh` (subcommands: `init`, `write-meta`, `list`, `remove`, `remove-path`)
+
+### Agent Logs (runtime, never committed)
+
+The `db-agent` and `oidc-token` agents (and their guards) write a shared,
+structured audit trail under `~/.claude/logs/` — runtime data outside the repo,
+so there is nothing to commit or exclude. One JSON object per line (JSONL).
+
+- **Files:** `logs/db.log` (db-agent + db-guard), `logs/oidc.log` (oidc-token + oidc-curl + oidc-guard). Auto-created `chmod 700`/`600`.
+- **Writer:** `claude/scripts/log-lib.sh` — the single `log_event <level> <op> [k=v…]` helper sourced by `db-lib.sh`, `oidc-lib.sh`, and both guards, so every surface emits the same line shape.
+- **Core keys:** `ts, agent, script, level (error|denied|info), op, rid`, plus context (`alias`/`tenant`/`client`/`grant`/`user`/`host`/`exit`/`http`).
+- **HTTP errors** (oidc-curl non-2xx) also carry `reason` (canonical status phrase) and `detail` (short reason from the body — JSON error field or HTML `<title>`, truncated + token-scrubbed). Raw bodies are never logged.
+- **`rid`** correlates a single invocation across processes — e.g. `oidc-curl` exports it so its delegated `oidc-token` mint shares the id.
+- **Scope:** db-agent logs every operation (`info` reads/writes + `denied`); oidc logs **errors and denials only** (no successful-mint lines). Secrets/tokens/response bodies are never logged.
+- **Query:** `jq -c 'select(.level=="error")' ~/.claude/logs/oidc.log` · `jq -c 'select(.rid=="<id>")' ~/.claude/logs/*.log`
 
 ### Project-Local Configs (NOT symlinked)
 
