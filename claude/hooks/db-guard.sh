@@ -16,6 +16,13 @@
 
 PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
+# Centralized structured logging (best-effort; a no-op if the lib is unavailable
+# so the guard never fails to enforce just because logging broke).
+if ! source "$(dirname "${BASH_SOURCE[0]}")/../scripts/log-lib.sh" 2>/dev/null; then
+    log_event() { :; }
+fi
+LOG_AGENT="db"; LOG_SCRIPT="db-guard"
+
 INPUT=$(cat)
 CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -n "$CMD" ] || exit 0
@@ -24,6 +31,8 @@ deny() {
     echo "BLOCKED by db-guard: $1." >&2
     echo "Databases are local-only. Use db-agent.sh against a loopback/proxy alias," >&2
     echo "or run the direct command yourself in your terminal." >&2
+    # Trace the block (reason only — the command may carry a connection string/pw).
+    log_event denied block "msg=$1"
     exit 2
 }
 

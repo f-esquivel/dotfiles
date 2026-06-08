@@ -20,12 +20,21 @@
 
 PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
+# Centralized structured logging (best-effort; a no-op if the lib is unavailable
+# so the guard never fails to enforce just because logging broke).
+if ! source "$(dirname "${BASH_SOURCE[0]}")/../scripts/log-lib.sh" 2>/dev/null; then
+    log_event() { :; }
+fi
+LOG_AGENT="oidc"; LOG_SCRIPT="oidc-guard"
+
 INPUT=$(cat)
 CMD=$(printf '%s' "$INPUT"  | jq -r '.tool_input.command   // empty' 2>/dev/null)
 FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
 deny() {
     echo "BLOCKED by oidc-guard: $1." >&2
+    # Trace the block (reason only — never the command/file, which may name a token).
+    log_event denied block "msg=$1"
     echo "OIDC tokens/secrets must never enter model context." >&2
     echo "To make an authenticated request from inside an agent, use the guarded" >&2
     echo "wrapper (loopback only, token never surfaces):" >&2
