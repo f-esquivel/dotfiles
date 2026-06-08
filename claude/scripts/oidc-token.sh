@@ -81,6 +81,8 @@ source "$_oidc_dir/oidc-store.sh"    # config store, Keychain, discovery
 source "$_oidc_dir/oidc-request.sh"  # token request + smoke verify
 source "$_oidc_dir/oidc-manage.sh"   # interactive administration
 
+LOG_SCRIPT="oidc-token"              # identifies this writer in the centralized log
+
 require_deps() {
     local cmd
     for cmd in jq curl security; do
@@ -129,6 +131,7 @@ cmd_fetch() {
         esac
     done
     [ -n "$tenant" ] || die "missing --tenant <id> (see: oidc-token.sh list)" 1
+    LOG_TENANT="$tenant"   # context for any error logged from here on
 
     local tobj; tobj="$(load_tenant "$tenant")"
 
@@ -142,6 +145,7 @@ cmd_fetch() {
     local cobj
     cobj="$(printf '%s' "$tobj" | jq -c --arg c "$client" '.clients[$c] // empty')"
     [ -n "$cobj" ] || die "tenant '$tenant' has no client '$client'" 3
+    LOG_CLIENT="$client"
     local scopes
     scopes="$(printf '%s' "$cobj" | jq -r '(.scopes // ["openid"]) | join(" ")')"
 
@@ -164,6 +168,7 @@ cmd_fetch() {
     else
         grant="client_credentials"
     fi
+    LOG_GRANT="$grant"; LOG_USER="$alias"
 
     # Validate the client supports the implied grant.
     local supported
@@ -180,9 +185,9 @@ cmd_fetch() {
 
     # Mint the token via the shared requester. The plaintext token is captured
     # in-process (line 2) and never reaches this script's final stdout.
-    local fetched access_token expires_in
+    local fetched access_token expires_in rc=0
     fetched="$(oidc_request "$token_endpoint" "$grant" "$client" "$scopes" "$tenant" "$alias" "$username")" \
-        || exit $?
+        || { rc=$?; oidc_log_error mint "$rc" "token request to issuer failed"; exit "$rc"; }
     expires_in="$(printf '%s\n' "$fetched" | sed -n '1p')"
     access_token="$(printf '%s\n' "$fetched" | sed -n '2p')"
     [ -n "$access_token" ] || die "response contained no access_token" 4
@@ -214,12 +219,13 @@ cmd_fetch() {
 
 # --------------------------------------------------------------------------- #
 main() {
+    log_rid_init   # correlation id; shared with a parent oidc-curl if it set one
     require_deps
     case "${1:-}" in
-        list)           cmd_list ;;
-        tenant)         shift; cmd_tenant "$@" ;;
+        list)           LOG_OP="list";   cmd_list ;;
+        tenant)         LOG_OP="tenant"; shift; cmd_tenant "$@" ;;
         -h|--help)      sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
-        *)              cmd_fetch "$@" ;;
+        *)              LOG_OP="mint";   cmd_fetch "$@" ;;
     esac
 }
 

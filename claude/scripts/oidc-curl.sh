@@ -39,7 +39,13 @@ PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 _dir="$(dirname "${BASH_SOURCE[0]}")"
 # shellcheck source=oidc-lib.sh
-source "$_dir/oidc-lib.sh"   # OIDC_* paths + die
+source "$_dir/oidc-lib.sh"   # OIDC_* paths + die + structured logging
+
+LOG_SCRIPT="oidc-curl"       # identifies this writer in the centralized log
+LOG_OP="curl"
+# Mint a correlation id NOW and export it, so the delegated oidc-token.sh mint
+# (a child process) shares this rid — the two-step run reads as one trace.
+log_rid_init
 
 usage() {
     echo "usage: oidc-curl [--tenant <id>] [--client <id>] [--user <alias>] [--refresh]" >&2
@@ -81,6 +87,67 @@ require_loopback() {  # url
     esac
 }
 
+# Canonical reason phrase for an HTTP status code (empty if unrecognized). Static
+# map — carries no body content, so it is always safe to log.
+http_reason() {  # <code>
+    case "$1" in
+        400) echo "Bad Request" ;;            401) echo "Unauthorized" ;;
+        402) echo "Payment Required" ;;       403) echo "Forbidden" ;;
+        404) echo "Not Found" ;;              405) echo "Method Not Allowed" ;;
+        406) echo "Not Acceptable" ;;         408) echo "Request Timeout" ;;
+        409) echo "Conflict" ;;               410) echo "Gone" ;;
+        413) echo "Payload Too Large" ;;      415) echo "Unsupported Media Type" ;;
+        422) echo "Unprocessable Entity" ;;   429) echo "Too Many Requests" ;;
+        500) echo "Internal Server Error" ;;  501) echo "Not Implemented" ;;
+        502) echo "Bad Gateway" ;;            503) echo "Service Unavailable" ;;
+        504) echo "Gateway Timeout" ;;        3*)  echo "Redirect" ;;
+        *)   echo "" ;;
+    esac
+}
+
+# Pull a short, human-readable reason out of a response body: conventional error
+# fields for JSON, the <title> for HTML. The body is already token-scrubbed by the
+# caller; output is whitespace-flattened and capped at 200 chars. Empty when
+# nothing usable is found. Best-effort — never fails the caller.
+extract_detail() {  # <body> <content_type>
+    local body="$1" ctype="$2" d="" head is_json=0
+    head="$(printf '%s' "$body" | sed -E 's/^[[:space:]]+//' | cut -c1)"
+    case "$ctype" in *json*) is_json=1 ;; esac
+    [ "$is_json" = 0 ] && case "$head" in '{'|'[') is_json=1 ;; esac
+
+    if [ "$is_json" = 1 ]; then
+        d="$(printf '%s' "$body" | jq -r '
+            # A string counts only if it has a non-whitespace char — jqs // skips
+            # only null/false, so blank ("") fields must be filtered explicitly.
+            def nonblank: select(type=="string" and test("\\S"));
+            def firsterr:
+                (.message? | nonblank)
+                // (.error?  | if type=="object" then (.message? | nonblank)
+                               else nonblank end)
+                // (.detail? | nonblank)
+                // (.title?  | nonblank)
+                // (.errors? | if type=="array" then .[0]
+                               elif type=="object" then (to_entries[0].value)
+                               else . end)
+                // (.exception? | nonblank)
+                // empty;
+            firsterr
+            | if type=="string" then .
+              elif (type=="number" or type=="boolean") then tostring
+              else tojson end
+        ' 2>/dev/null)" || d=""
+    fi
+    if [ -z "$d" ]; then
+        case "$body" in
+            *"<title>"*) d="${body#*<title>}"; d="${d%%</title>*}" ;;
+        esac
+    fi
+
+    [ -n "$d" ] || return 0
+    d="$(printf '%s' "$d" | tr '\n\r\t' '   ' | sed -E 's/  +/ /g; s/^ +//; s/ +$//')"
+    printf '%s' "${d:0:200}"
+}
+
 require_deps
 
 # --- selection flags (consumed up to `--`) --------------------------------- #
@@ -103,6 +170,8 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -n "$tenant" ] || { usage; die "missing tenant (positional or --tenant <id>)" 1; }
+# Context for any error logged from here on (no secrets).
+LOG_TENANT="$tenant"; LOG_CLIENT="$client"; LOG_USER="$alias"
 
 # --- request: METHOD URL [--data ...] [--header ...] ----------------------- #
 method="${1:-}"; [ $# -gt 0 ] && shift || true
@@ -170,7 +239,7 @@ fi
 
 # --- execute, scrub, guarantee no token surfaces --------------------------- #
 set +e
-resp="$(curl "${c_args[@]}" "$url" -w $'\n%{http_code}' 2>"$sd/err")"
+resp="$(curl "${c_args[@]}" "$url" -w $'\n%{http_code}\t%{content_type}' 2>"$sd/err")"
 rc=$?
 set -e
 err="$(cat "$sd/err" 2>/dev/null || true)"
@@ -190,8 +259,24 @@ if [ "$rc" -ne 0 ]; then
     die "curl failed (exit $rc) for $method $url" 4
 fi
 
-http_code="${resp##*$'\n'}"
+meta_line="${resp##*$'\n'}"
 body="${resp%$'\n'*}"
+http_code="${meta_line%%$'\t'*}"
+ctype="${meta_line#*$'\t'}"   # used only to pick the detail extractor; not logged
+
+# A non-2xx response is a likely execution issue — trace it with the canonical
+# reason phrase and a short reason pulled from the body (JSON error field or HTML
+# title). The raw body is still never logged; the request succeeded at the
+# transport level, so the body is surfaced as usual and the exit stays 0.
+case "$http_code" in
+    2*) ;;
+    *)  reason="$(http_reason "$http_code")"
+        detail="$(extract_detail "$body" "$ctype")"
+        log_event error curl "http=$http_code" ${reason:+"reason=$reason"} \
+            "tenant=$tenant" ${client:+"client=$client"} ${alias:+"user=$alias"} \
+            ${detail:+"detail=$detail"} \
+            "msg=non-2xx response for $method $url" ;;
+esac
 
 printf '%s\n' "$body"
 printf 'HTTP %s — %s %s\n' "$http_code" "$method" "$url" >&2

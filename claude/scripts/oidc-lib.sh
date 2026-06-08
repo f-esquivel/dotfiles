@@ -26,8 +26,37 @@ OIDC_TENANTS_FILE="$OIDC_HOME/tenants.json"
 OIDC_CACHE_DIR="$OIDC_HOME/.cache"
 OIDC_RUN_DIR="$OIDC_HOME/run"
 
-# Print an error to stderr and exit. Second arg overrides the exit code (default 1).
-die() { echo "Error: $1" >&2; exit "${2:-1}"; }
+# Centralized structured logging (shared with db-agent + guards). The entry
+# script sets LOG_SCRIPT (oidc-token / oidc-curl) and LOG_OP, and populates the
+# LOG_TENANT/CLIENT/GRANT/USER context vars as it resolves them — die() and
+# oidc_log_error attach whichever are set. Tokens/secrets are NEVER passed.
+# shellcheck source=log-lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/log-lib.sh"
+: "${LOG_AGENT:=oidc}"
+
+# Emit a structured error line with whatever OIDC context vars are currently set.
+# Shared by die() and the direct-exit failure paths (e.g. a delegated request
+# that exits without going through die). Best-effort; never breaks the caller.
+#   oidc_log_error <op> <exit-code> <msg>
+oidc_log_error() {
+    local extra=()
+    [ -n "${LOG_TENANT:-}" ] && extra+=("tenant=$LOG_TENANT")
+    [ -n "${LOG_CLIENT:-}" ] && extra+=("client=$LOG_CLIENT")
+    [ -n "${LOG_GRANT:-}" ]  && extra+=("grant=$LOG_GRANT")
+    [ -n "${LOG_USER:-}" ]   && extra+=("user=$LOG_USER")
+    log_event error "$1" "exit=$2" "msg=$3" ${extra[@]+"${extra[@]}"} 2>/dev/null || true
+}
+
+# Print an error to stderr and exit. Second arg overrides the exit code (default
+# 1). Every error path in the oidc scripts funnels through here, so wrapping it
+# captures all failures (with context) at one choke point — the msg is the same
+# operator-facing text already shown on stderr, so it is safe to log.
+die() {
+    local msg="$1" code="${2:-1}"
+    echo "Error: $msg" >&2
+    oidc_log_error "${LOG_OP:-unknown}" "$code" "$msg"
+    exit "$code"
+}
 
 # oidc_token_path <tenant> <client> [alias] -> cached token file path.
 # Key = tenant__client[__alias], with path-unfriendly chars flattened.
