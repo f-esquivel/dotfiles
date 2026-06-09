@@ -33,8 +33,13 @@ run `oidc-token.sh` first** — that double-mints (a redundant password grant wh
 impersonating). Selection flags mirror `oidc-token.sh`; the request goes after `--`:
 
 ```
-~/.claude/scripts/oidc-curl.sh --tenant <id> [--client <id>] [--user <alias>] -- <METHOD> http://127.0.0.1:PORT/path [--data <body>] [--header 'K: V']
+~/.claude/scripts/oidc-curl.sh --tenant <id> [--client <id>] [--user <alias>] -- <METHOD> http://127.0.0.1:PORT/path [--data <body> | --form <part>] [--header 'K: V']
 ```
+
+For multipart uploads use `--form` (curl `-F`) instead of `--data`: repeatable,
+supports `field=value` and file refs (`field=@/path` to upload a file). curl sets
+the `multipart/form-data` Content-Type + boundary, so don't add one yourself.
+`--data` and `--form` are mutually exclusive.
 
 Credential lifecycle (all interactive and/or destructive — **the user runs these**,
 you only suggest the exact command): `tenant add-client` / `add-user`,
@@ -85,6 +90,7 @@ returns only a response body. Neither ever emits the token. By design:
      ```
      ~/.claude/scripts/oidc-curl.sh --tenant <tenant> [--user <alias>] -- GET http://127.0.0.1:PORT/endpoint
      ~/.claude/scripts/oidc-curl.sh --tenant <tenant> -- POST http://127.0.0.1:PORT/x --data '{"k":1}' --header 'Content-Type: application/json'
+     ~/.claude/scripts/oidc-curl.sh --tenant <tenant> -- POST http://127.0.0.1:PORT/upload --form 'file=@/path/to/f.png' --form 'kind=avatar'
      ```
 
    - **Non-loopback host, or the user just wants a token/command** — run

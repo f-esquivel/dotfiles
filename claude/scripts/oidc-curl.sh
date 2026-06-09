@@ -21,11 +21,17 @@
 #
 # Usage:
 #   oidc-curl.sh [--tenant <id>] [--client <id>] [--user <alias>] [--refresh]
-#                -- <METHOD> <URL> [--data <body>]... [--header 'K: V']...
+#                -- <METHOD> <URL> [--data <body>]... [--form <part>]... [--header 'K: V']...
 #     The tenant may be the first bare argument or given via --tenant.
 #     <METHOD>  one of GET HEAD POST PUT PATCH DELETE OPTIONS (case-insensitive)
 #     <URL>     http(s) URL whose host is loopback only
-#     --data    request body; repeatable parts are concatenated, sent raw
+#     --data    raw request body; repeatable parts are concatenated, sent raw.
+#               Mutually exclusive with --form.
+#     --form    multipart/form-data part, passed verbatim to curl -F. Repeatable.
+#               Supports field=value and curl's file refs (field=@/path to upload
+#               a file, field=</path to read a field value from a file). curl sets
+#               the multipart Content-Type + boundary itself, so don't also set a
+#               Content-Type header. Mutually exclusive with --data.
 #     --header  extra request header; an Authorization header is rejected (this
 #               script owns it). Repeatable.
 #
@@ -49,7 +55,7 @@ log_rid_init
 
 usage() {
     echo "usage: oidc-curl [--tenant <id>] [--client <id>] [--user <alias>] [--refresh]" >&2
-    echo "                 -- <METHOD> <URL> [--data <body>]... [--header 'K: V']..." >&2
+    echo "                 -- <METHOD> <URL> [--data <body>]... [--form <part>]... [--header 'K: V']..." >&2
 }
 
 require_deps() {
@@ -195,17 +201,25 @@ add_header() {  # raw "K: V"
 }
 
 data_parts=()
+form_parts=()
 hdrs=()
 while [ $# -gt 0 ]; do
     arg="$1"; shift
     case "$arg" in
         --data|-d)   data_parts+=("${1:-}"); [ $# -gt 0 ] && shift || true ;;
         --data=*)    data_parts+=("${arg#*=}") ;;
+        --form|-F)   form_parts+=("${1:-}"); [ $# -gt 0 ] && shift || true ;;
+        --form=*)    form_parts+=("${arg#*=}") ;;
         --header|-H) add_header "${1:-}";    [ $# -gt 0 ] && shift || true ;;
         --header=*)  add_header "${arg#*=}" ;;
         *)           die "unknown request option '$arg'" 1 ;;
     esac
 done
+
+# --data and --form both set the request body; curl accepts only one kind.
+if [ "${#data_parts[@]}" -gt 0 ] && [ "${#form_parts[@]}" -gt 0 ]; then
+    die "--data and --form are mutually exclusive (pick raw body OR multipart)" 1
+fi
 
 # --- mint via oidc-token.sh; reuse its resolved token_path (no duplication) - #
 mint_args=(--tenant "$tenant")
@@ -235,6 +249,13 @@ if [ "${#data_parts[@]}" -gt 0 ]; then
     ( umask 077; : > "$sd/body" )
     for d in "${data_parts[@]}"; do printf '%s' "$d" >> "$sd/body"; done
     c_args+=(--data-binary @"$sd/body")
+elif [ "${#form_parts[@]}" -gt 0 ]; then
+    # Multipart: hand each part to curl -F verbatim. curl reads any field=@/path
+    # file uploads (and field=</path field-from-file) itself and sets the
+    # multipart/form-data Content-Type + boundary. The Authorization header still
+    # rides the private @file above; no -F part can reference it (the temp dir is
+    # an unguessable mktemp path), and the response is token-scrubbed as usual.
+    for f in "${form_parts[@]}"; do c_args+=(-F "$f"); done
 fi
 
 # --- execute, scrub, guarantee no token surfaces --------------------------- #
