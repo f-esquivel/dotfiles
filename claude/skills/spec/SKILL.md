@@ -459,16 +459,15 @@ Unresolved decisions or items needing clarification.
 
 ### Step 9: Save and Next Steps
 
-1. Propose the folder path: `specs/<feature-slug>/`.
+1. Use the folder path: `specs/<feature-slug>/`.
 2. **First spec in project?** Ensure `specs/` is excluded from git:
    - Check if `specs/` is already in `.git/info/exclude`
    - If not, append `specs/` to `.git/info/exclude`
    - **NEVER** add to `.gitignore` — use `.git/info/exclude` only (local, not committed)
-3. Ask the user to approve the content.
-4. After approval, save the files:
+3. Write the files directly — no preview or approval gate:
    - **New feature:** write `00-overview.md` + `01-<slug>.md`.
    - **Adding a slice:** write the new `NN-<slug>.md` and tick/refresh the corresponding entry in the parent's `## Slices` map.
-5. Offer to create a tracking issue. If accepted, **invoke the `/create-issue` skill** via the Skill tool, passing the requirement description. Do NOT mention any spec file, its path, or its existence in the issue — only its content informs the issue body. Do not re-implement the issue-creation flow inline.
+4. Offer to create a tracking issue. If accepted, **invoke the `/create-issue` skill** via the Skill tool, passing the requirement description. Do NOT mention any spec file, its path, or its existence in the issue — only its content informs the issue body. Do not re-implement the issue-creation flow inline.
 
 ## Rules
 
