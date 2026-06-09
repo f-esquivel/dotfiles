@@ -252,6 +252,12 @@ setup_zsh() {
         fi
     fi
 
+    # Claude Code config (claude/cc aliases, oidc-* and db-agent wrappers) is a
+    # tracked file sourced directly by .zshrc.user — no symlink or template.
+    if [ -s "$DOTFILES_DIR/zsh/.zshrc.claude" ]; then
+        info "Claude Code shell config (.zshrc.claude) will be sourced by .zshrc.user"
+    fi
+
     if [ "$DRY_RUN" = false ]; then
         success "Zsh configuration linked"
     fi

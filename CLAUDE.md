@@ -8,7 +8,7 @@ Personal macOS dotfiles for bootstrapping and maintaining a development environm
 dotfiles/
 ├── install.sh              # Main installation orchestrator
 ├── brew/Brewfile           # Homebrew packages (organized by category)
-├── zsh/                    # Shell: .zshrc, .zshrc.user, .zshrc.secrets
+├── zsh/                    # Shell: .zshrc, .zshrc.user, .zshrc.claude, .zshrc.secrets
 ├── ssh/                    # SSH: config, config.local
 ├── git/                    # Git: .gitconfig, context templates
 ├── ghostty/config          # Terminal emulator
@@ -165,7 +165,8 @@ Zsh files load in this order — each layer adds to the previous:
 1. `.zprofile` — Login shell setup (Homebrew PATH)
 2. `.zshrc` — Zim framework and plugins
 3. `.zshrc.user` — Aliases, paths, environment variables
-4. `.zshrc.secrets` — API keys and tokens (git-ignored)
+4. `.zshrc.claude` — Claude Code aliases + agent-tooling wrappers (sourced by `.zshrc.user`)
+5. `.zshrc.secrets` — API keys and tokens (git-ignored)
 
 NVM is lazy-loaded via `utils/.lazy-nvm.sh` to avoid ~2s shell startup penalty.
 

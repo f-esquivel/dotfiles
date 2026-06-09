@@ -1,0 +1,54 @@
+# =============================================================================
+# CLAUDE CODE CONFIGURATION
+# =============================================================================
+# Aliases and interactive wrappers for Claude Code and its agent tooling.
+# Sourced by .zshrc.user. These wrappers are for HUMAN use at an interactive
+# prompt; agents call the scripts in ~/.claude/scripts by absolute path instead
+# (a non-interactive subagent shell doesn't source this file).
+
+# -----------------------------------------------------------------------------
+# Claude CLI Aliases
+# -----------------------------------------------------------------------------
+
+alias claude="claude --dangerously-skip-permissions"
+# cc:   pin 200K context, avoid 1M billing surprise
+# cc1m: opt into 1M context window on demand
+alias cc="CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude"
+alias cc1m="claude"
+
+# -----------------------------------------------------------------------------
+# OIDC Token Tooling (Keycloak)
+# -----------------------------------------------------------------------------
+# Pipeline: oidc-token mints/manages → oidc-bearer prints → oidc-curl consumes.
+
+# oidc-token: mint a token (metadata only — never prints the token) and manage
+# tenants/clients/users, e.g.:
+#   oidc-token list                        # tenants/clients/users (no secrets)
+#   oidc-token --tenant <id> [-u <alias>]  # mint; prints metadata only
+#   oidc-token tenant add                  # interactive registration
+oidc-token() { "$HOME/.claude/scripts/oidc-token.sh" "$@"; }
+
+# oidc-bearer: print the cached raw token for piping into your own curl. The ONE
+# command that emits a token, so it's human-only (the agent guard blocks it):
+#   curl -H "Authorization: Bearer $(oidc-bearer <tenant> [-c <client>] [-u <alias>])" https://api...
+oidc-bearer() { "$HOME/.claude/scripts/oidc-bearer.sh" "$@"; }
+
+# oidc-curl: mint + make a loopback request in one step, returning only the
+# response body (token never surfaces; non-loopback targets are refused):
+#   oidc-curl --tenant <tenant> [-u <alias>] -- GET http://127.0.0.1:PORT/path
+oidc-curl() { "$HOME/.claude/scripts/oidc-curl.sh" "$@"; }
+
+# -----------------------------------------------------------------------------
+# Database Agent Tooling
+# -----------------------------------------------------------------------------
+
+# db-agent: connect to locally-reachable DBs (Postgres/MySQL) for audits, data
+# retrieval, and guarded executions. HUMAN-only convenience wrapper — the agent
+# calls the script by absolute path. The target lifecycle commands are
+# interactive and seed the Keychain, so you run them here, not the agent:
+#   db-agent list                          # global alias registry (no secrets)
+#   db-agent target add                    # register a DB (interactive)
+#   db-agent target set-password <alias>   # rotate the Keychain password
+#   db-agent sql   <alias> -- "<SELECT …>" # read channel
+#   db-agent write <alias> [--commit] -- "<SQL>"  # txn, rolls back unless --commit
+db-agent() { "$HOME/.claude/scripts/db-agent.sh" "$@"; }
