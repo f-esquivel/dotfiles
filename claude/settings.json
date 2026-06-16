@@ -6,7 +6,20 @@
   "includeCoAuthoredBy": false,
   "permissions": {
     "deny": [
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.secrets)",
+      "Read(**/*.local)",
+      "Read(**/id_rsa)",
+      "Read(**/id_dsa)",
+      "Read(**/id_ecdsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/.netrc)",
+      "Read(**/.pgpass)",
+      "Read(**/.aws/credentials)"
     ],
     "ask": [
       "Bash(git commit:*)"
@@ -35,6 +48,11 @@
             "type": "command",
             "command": "~/.claude/hooks/db-guard.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/secret-guard.sh",
+            "timeout": 5
           }
         ]
       },
@@ -44,6 +62,16 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/oidc-guard.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/secret-guard.sh",
             "timeout": 5
           }
         ]
@@ -68,6 +96,8 @@
   "_notes": {
     "env.ENABLE_TOOL_SEARCH": "force deferred MCP tool loading; auto mode unreliable",
     "autoMemoryEnabled": "disable auto MEMORY.md writes; CLAUDE.md still active",
-    "skipDangerousModePermissionPrompt": "suppress bypass-permissions launch warning"
+    "skipDangerousModePermissionPrompt": "suppress bypass-permissions launch warning",
+    "permissions.deny Read(**/.env.*)": "blunt: blocks the Read tool for ALL env variants incl scaffolds (.env.example). No per-file exception is possible — eval order is deny>ask>allow, first match wins, and Read patterns have no gitignore negation. Read scaffolds via `cat .env.example`; secret-guard.sh allows scaffold cats while still blocking real .env reads.",
+    "secret-guard": "PreToolUse hook (Bash+Grep) keeping secret material out of context; pairs with these deny rules. Regression suite: claude/hooks/secret-guard.test.sh"
   }
 }

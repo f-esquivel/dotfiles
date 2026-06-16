@@ -25,6 +25,9 @@ git/.gitconfig.*
 # OIDC token *tooling* is tracked; cached tokens live in ~/.claude/oidc/ (outside the repo)
 !claude/scripts/oidc-token.sh
 !claude/agents/oidc-token.md
+# secret-guard is the hook that BLOCKS secret reads — tracked tooling, not a secret
+!claude/hooks/secret-guard.sh
+!claude/hooks/secret-guard.test.sh
 *.pem
 *.key
 .env
