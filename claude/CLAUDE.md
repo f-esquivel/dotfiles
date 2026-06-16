@@ -21,10 +21,14 @@ Use `<br>` to force line breaks between consecutive bold metadata lines — stan
 
 ### Diagrams
 
-Use Mermaid (```` ```mermaid ````) instead of ASCII art when the diagram involves branching, complex relationships, or would require manual alignment. ASCII art is fine for simple linear flows or small illustrations.
+Pick the format by **render target** first, then by **complexity**:
 
-**Use Mermaid for:** flowcharts, sequence diagrams, entity relationships, state machines, git graphs<br>
-**Use ASCII for:** simple directory trees, single linear flows, small inline illustrations
+* **Markdown files only** — use Mermaid (```` ```mermaid ````) when the diagram involves branching, complex relationships, or would require manual alignment. Mermaid renders in Markdown viewers but is unreadable as raw text.
+* **Console output** (anything shown in the terminal, never written to an `.md`) — always use ASCII. The terminal can't render Mermaid, so a Mermaid block there is just noise.
+* **Simple and direct graphics** — use ASCII regardless of target. If the picture is a short linear flow, a small tree, or a handful of boxes, ASCII is clearer and cheaper than Mermaid even inside a Markdown file.
+
+**Use Mermaid for:** flowcharts, sequence diagrams, entity relationships, state machines, git graphs — **and only in Markdown files**<br>
+**Use ASCII for:** all console/terminal output, plus simple directory trees, single linear flows, and small inline illustrations anywhere
 
 ### Tables
 
