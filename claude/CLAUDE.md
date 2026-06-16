@@ -120,6 +120,19 @@ Prefer dispatching the matching subagent over hand-rolling the operation — the
 * **DB work** — Postgres/MySQL audits, queries, schema introspection, executions against a locally-reachable database → dispatch `db-agent`. Never hand-roll `psql`/`mysql` for this; the `db-guard` hook blocks raw clients aimed at non-loopback hosts regardless. Targets are aliases in the global registry (`db-agent list`); writes roll back unless the user explicitly asks to persist.
 * **OIDC tokens** — minting an M2M token or impersonating a user (password grant) for manual API testing → dispatch `oidc-token`. Never print tokens into context; the `oidc-guard` hook blocks the raw-token printer.
 
+## Secret Hygiene
+
+Never read secret material into context — not via Read, Grep, Bash, or any interpreter (python/node/etc.). This is enforced by the `secret-guard` hook + `permissions.deny` rules, but the rule holds even on paths the guard can't see: do not work around it.
+
+* **Do NOT read** `.env` (and `.env.<env>`), `*.secrets`, `*.local`, SSH keys, `*.pem`/`*.key`, `.netrc`, `.pgpass`, `.aws/credentials`, or files named `secrets.*`/`credentials.*`
+* **Do NOT search for or print secret values** — no `grep`/`rg` for `*_SECRET`, `*_TOKEN`, `*_PASSWORD`, `*_API_KEY`, etc.; no `printenv`/`env` dumps; no `echo $SOME_SECRET`
+* **Reading scaffolds is fine — but via `cat`, not Read** — `cat .env.example` / `.env.template` / `.env.sample` is allowed by the hook. The Read *tool* is denied for the whole `.env.*` family (a blunt safety net — `permissions.deny` can't carve a per-file exception), so reach scaffolds with `cat` (Bash)
+* **Need non-secret config from a blocked file** (e.g. `PORT`, `NODE_ENV`, a base URL in `.env`) — the guard is all-or-nothing per file, so do NOT try to extract single keys (`grep PORT .env` is blocked too). Instead, in order:
+  1. `cat` the scaffold (`cat .env.example`) — usually lists every var name + non-secret defaults
+  2. Read the committed config that *consumes* the env — config loaders, `docker-compose.yml`, `config/*`
+  3. Ask the user to run `! grep VAR .env` (or `! cat .env`) themselves — the `!` prefix executes in their session and lands the output in context by their choice
+* **Never circumvent the block** — if a secret value is genuinely needed, ask the user to inspect it in their own terminal. For tokens/DB access use the `oidc-token` / `db-agent` agents, which handle secrets without exposing them in context
+
 ## Git Rules
 
 * `git push` is **blocked** globally — never attempt to push. The user will push manually when ready
