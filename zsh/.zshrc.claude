@@ -16,6 +16,14 @@ alias claude="claude --dangerously-skip-permissions"
 alias cc="CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude"
 alias cc1m="claude"
 
+# ccrm / ccrrm: launch cc straight into an MR/PR review skill by id, e.g.:
+#   ccrm 42    →  cc "/review-mr 42"
+#   ccrrm 42   →  cc "/re-review-mr 42"
+# Inlined (not the `cc` alias) since alias expansion inside a function body is
+# unreliable and `cc` also names the C compiler.
+ccrm() { CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude "/review-mr $*"; }
+ccrrm() { CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude "/re-review-mr $*"; }
+
 # -----------------------------------------------------------------------------
 # OIDC Token Tooling (Keycloak)
 # -----------------------------------------------------------------------------
