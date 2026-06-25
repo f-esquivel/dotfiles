@@ -100,9 +100,15 @@ The script prints the **bare** identifier to stdout — capture it, do **not** `
 
 ### Step 3: Fetch Discussions
 
+**Always fetch live, into a per-run unique file.** The discussions snapshot is the authoritative current server state — it must be re-fetched fresh on **every** invocation. Do **not** reuse a snapshot left behind by a prior run or session: a fixed name like `/tmp/mr-<id>-discussions.json` is shared across sessions (keyed only by MR id, in global `/tmp`), so reusing it replays a thread's **stale** state — resolved threads look unresolved, new replies are missing, reopened threads look closed. Use `mktemp` so each invocation gets its own collision-proof path, and re-fetch even if a previous file happens to exist:
+
 ```bash
-glab api --paginate "projects/${PROJECT_ID}/merge_requests/<MR_ID>/discussions" > /tmp/mr-<id>-discussions.json
+DISCUSSIONS_JSON="$(mktemp -t mr-${MR_ID}-discussions.XXXXXX.json)"
+glab api --paginate "projects/${PROJECT_ID}/merge_requests/${MR_ID}/discussions" > "$DISCUSSIONS_JSON"
 ```
+
+- Every downstream step (Step 4 filter, Step 4.6 sidecar re-check, Step 8 reply targets) reads from **`$DISCUSSIONS_JSON`** — never from a hardcoded `/tmp/mr-<id>-discussions.json` path.
+- **Clean up** at the end of the run (Step 10): `rm -f "$DISCUSSIONS_JSON"`.
 
 Each discussion has `id`, `notes[]`. For each discussion:
 - A thread is **resolvable** if any note has `resolvable: true`.
@@ -194,14 +200,21 @@ Apply these filters in order:
 6. **Sidecar dedupe** (skip if `--force-reevaluate`):
    - For inline notes, the dedupe key is `discussion:{discussion_id}`.
    - For virtual notes (Step 3b), use the `secondary_key` (`coderabbit:{section}:{file}:{line_range}`) — this catches re-posted CodeRabbit observations across summary-note IDs (e.g. items appearing in the `♻️ Duplicate comments` section of a later run).
-   - Drop any candidate whose key already appears in the sidecar's `addressed`, `invalid_replied`, or `skipped_uncertain` lists.
+   - A candidate whose key already appears in the sidecar's `addressed`, `invalid_replied`, or `skipped_uncertain` lists is a **suppression candidate** — but run the **freshness re-check** below before actually dropping it.
    - Keep a `carryover` set of dropped candidates so the user-facing report can show what was suppressed.
+
+   **Freshness re-check (inline notes only — before suppressing).** A sidecar entry records the thread's state *at the run that recorded it*, not its current server state. Before dropping a suppression candidate, look it up in the **freshly-fetched `$DISCUSSIONS_JSON`** (Step 3) and compare against the recorded run's timestamp — `runs[N].date`, where `N` is the entry's `run`. **Resurface** (do **not** suppress) the candidate when any of these hold:
+   - The thread has a note with `created_at > runs[N].date` authored by **someone other than us** — i.e. the reviewer replied again after we addressed/skipped it. (Ignore our own `Addressed on {sha}` reply when scanning for newer notes.)
+   - The thread was **resolved** at record time but is now **unresolved** again (`notes[0].resolved` flipped `true → false`) — it was reopened.
+
+   A resurfaced candidate re-enters the batch as a normal note (Step 5 re-evaluates it against current code + the new replies). In the Step 4 report, list it under a **"resurfaced (new activity since last run)"** count, separate from the plain suppression count, so the user sees the sidecar did not silently swallow a re-opened thread. Virtual notes (CodeRabbit) have no threadable conversation, so they skip the re-check and suppress on key match as before.
 
 Report to the user before proceeding:
 - Total unresolved threads on the MR
 - Threads matching the reviewer
 - Threads in the selected batch (with the batch's date range)
 - Sidecar suppression count (e.g. "5 candidates suppressed by sidecar: 4 addressed, 1 skipped previously") — or "sidecar bypassed (`--force-reevaluate`)"
+- Resurfaced count — candidates that matched a sidecar key but re-entered the batch because of new server-side activity since the recorded run (e.g. "2 resurfaced: 1 reviewer replied again, 1 thread reopened")
 
 ### Step 5: Evaluate Each Note Against the Codebase
 
@@ -365,6 +378,8 @@ Print:
 - Sidecar updated at `reviews/eval-{mr-id}.md` (mention path only in-session — never in committed artifacts)
 - Reminder: changes are committed locally; `git push` is the user's responsibility
 
+Then remove the per-run discussions snapshot: `rm -f "$DISCUSSIONS_JSON"`.
+
 ## Rules
 
 - **GitLab only.** Abort if remote is not GitLab.
@@ -375,6 +390,8 @@ Print:
 - **Never auto-resolve threads.** Replies only.
 - **Respect the original note language** when drafting replies for invalid notes — detect from the note body; do not switch language based on session output.
 - **Read current code, not the note's quoted snippet** — notes may be stale.
+- **Always fetch discussions live into a per-run `mktemp` file** — never reuse a fixed-name snapshot (`/tmp/mr-<id>-discussions.json`) left by a prior run/session; it replays stale thread state across sessions. Re-fetch on every invocation and `rm -f "$DISCUSSIONS_JSON"` at the end.
+- **Re-check live thread state before sidecar suppression** — a candidate matching a sidecar key still resurfaces if the reviewer replied again or the thread reopened since the recorded run. The sidecar must not silently swallow re-opened threads.
 - **Group commits by file/concern**, not one-per-note. The same SHA can address multiple threads.
 - **Skip resolved threads.** Only operate on unresolved ones.
 - **For human reviewers**, cluster by `created_at` gap > 5 minutes and pick the latest batch. For `coderabbit`, take all unresolved.
