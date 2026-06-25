@@ -12,8 +12,45 @@ PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 
+# Detect a `git commit` invocation regardless of intervening global options.
+# Git's global flags sit BEFORE the subcommand and some take a separate-token
+# value (`-C <path>`, `-c <k=v>`, `--git-dir <path>`, …), so a naive
+# `^git commit` test silently misses `git -C /repo commit`, `git -c k=v commit`,
+# `git --git-dir=… commit`, etc. — letting those skip message linting.
+# Runs in a ( ) subshell so `set -f` (disable globbing while tokenizing) and the
+# early `exit` stay local. For each &&/||/;/| segment: find `git`, skip global
+# options (consuming the value of the value-taking ones), then require the first
+# real subcommand to be exactly `commit` (so `commit-graph`/`commit-tree` and
+# `commit` appearing as an argument like `log --grep commit` don't match).
+is_git_commit() (
+  set -f
+  segments=$(printf '%s' "$1" | sed -E 's/(\&\&|\|\||[;|&])/\n/g')
+  while IFS= read -r seg; do
+    # shellcheck disable=SC2086
+    set -- $seg
+    seen_git=0
+    while [ $# -gt 0 ]; do
+      tok=$1; shift
+      if [ "$seen_git" -eq 0 ]; then
+        [ "$tok" = "git" ] && seen_git=1
+        continue
+      fi
+      case $tok in
+        -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env)
+          shift 2>/dev/null || true ;;  # global option whose value is a separate token
+        -*) ;;                          # other global option (incl --opt=val form) — skip
+        commit) exit 0 ;;               # first subcommand is exactly `commit`
+        *) seen_git=0 ;;                # some other subcommand — not a commit
+      esac
+    done
+  done <<__GITSEG__
+$segments
+__GITSEG__
+  exit 1
+)
+
 # Only intercept git commit commands
-if ! echo "$COMMAND" | grep -qE '^git commit\b'; then
+if ! is_git_commit "$COMMAND"; then
   exit 0
 fi
 
