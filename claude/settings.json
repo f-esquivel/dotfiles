@@ -7,6 +7,7 @@
   "permissions": {
     "deny": [
       "Bash(git push:*)",
+      "Bash(git * push:*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/*.secrets)",
@@ -22,7 +23,8 @@
       "Read(**/.aws/credentials)"
     ],
     "ask": [
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git * commit:*)"
     ],
     "allow": [
       "Bash(~/.claude/scripts/oidc-token.sh:*)",
@@ -98,6 +100,7 @@
     "autoMemoryEnabled": "disable auto MEMORY.md writes; CLAUDE.md still active",
     "skipDangerousModePermissionPrompt": "suppress bypass-permissions launch warning",
     "permissions.deny Read(**/.env.*)": "blunt: blocks the Read tool for ALL env variants incl scaffolds (.env.example). No per-file exception is possible — eval order is deny>ask>allow, first match wins, and Read patterns have no gitignore negation. Read scaffolds via `cat .env.example`; secret-guard.sh allows scaffold cats while still blocking real .env reads.",
-    "secret-guard": "PreToolUse hook (Bash+Grep) keeping secret material out of context; pairs with these deny rules. Regression suite: claude/hooks/secret-guard.test.sh"
+    "secret-guard": "PreToolUse hook (Bash+Grep) keeping secret material out of context; pairs with these deny rules. Regression suite: claude/hooks/secret-guard.test.sh",
+    "permissions git * commit/push": "Bash matching is literal (not shell-aware re: git global flags), so `Bash(git commit:*)` only catches commands literally starting with `git commit` — `git -C <path> commit`, `git -c k=v commit`, `git --git-dir=… commit` bypass it. The mid-wildcard twin `Bash(git * commit:*)` covers those flag forms (the `*` spans intervening args); the plain `Bash(git commit:*)` is kept because `git * commit` won't match the no-flag form. Same pair guards the `git push` deny."
   }
 }
