@@ -94,8 +94,9 @@ In all cases, the final filter is an exact match against `author.username` — n
 
 Resolve the project ID via the helper so subsequent API calls are reliable:
 ```bash
-eval "$(~/.claude/scripts/gl-project-id.sh)"   # exports PROJECT_ID (encoded path or numeric)
+PROJECT_ID="$(~/.claude/scripts/gl-project-id.sh)"   # encoded path (group%2Fproject) or numeric ID
 ```
+The script prints the **bare** identifier to stdout — capture it, do **not** `eval` it (it emits no `PROJECT_ID=` assignment, so `eval` would try to run the path as a command).
 
 ### Step 3: Fetch Discussions
 
