@@ -109,6 +109,9 @@ Always apply:
 - `squad::[Δ] delta`
 - `development::ready for CR`
 
+**Production release MR** (target branch is `main`) → additionally apply:
+- `no auto review` — suppresses the automated reviewer on prod release MRs
+
 ### Assignee
 
 Always assign to `@me` (franklin.ese.plus)
