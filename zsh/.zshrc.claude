@@ -10,7 +10,10 @@
 # Claude CLI Aliases
 # -----------------------------------------------------------------------------
 
-alias claude="claude --dangerously-skip-permissions"
+# Bypass-permissions ("skip prompts") mode is set via claude/settings.json
+# (`permissions.defaultMode: bypassPermissions`), NOT a CLI flag here: cmux's
+# shell integration unaliases `claude` and wraps it on the first prompt, which
+# would strip an alias-injected --dangerously-skip-permissions.
 # cc:   pin 200K context, avoid 1M billing surprise
 # cc1m: opt into 1M context window on demand
 alias cc="CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude"
