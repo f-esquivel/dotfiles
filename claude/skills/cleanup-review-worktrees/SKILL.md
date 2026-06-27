@@ -66,9 +66,9 @@ Render a table:
 ```
 | # | Repo            | MR        | Age   | Verdict          | Rounds | Status                |
 |---|-----------------|-----------|-------|------------------|--------|-----------------------|
-| 1 | alilo-frontend  | gl-676    | 14d   | request_changes  | 2      | exists (MR open)      |
+| 1 | web-frontend    | gl-676    | 14d   | request_changes  | 2      | exists (MR open)      |
 | 2 | api-service     | gh-42     | 30d   | approve          | 1      | exists (MR merged)    |
-| 3 | alilo-frontend  | gl-555    | 60d   | -                | -      | orphaned (no worktree)|
+| 3 | web-frontend    | gl-555    | 60d   | -                | -      | orphaned (no worktree)|
 ```
 
 For each row, briefly show the worktree path and branch.
