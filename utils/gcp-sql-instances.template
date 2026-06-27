@@ -1,0 +1,25 @@
+# GCP Cloud SQL Proxy — instance registry
+#
+# Copy of this file is seeded to ~/.config/gcp-sql-proxy/instances.tsv by
+# install.sh (it never overwrites an existing registry). Override the path with
+# the GCP_SQL_PROXY_REGISTRY env var.
+#
+# One profile per line. Columns are whitespace-separated:
+#
+#   names              instance_connection_name                  port   env
+#
+#   names  comma-separated: first token is the canonical name, the rest are
+#          aliases. ALL are usable (`gcpsql be-test` or `gcpsql bt`) and
+#          tab-complete. Example field: be-test,bt
+#   inst   full Cloud SQL connection name  project:region:instance
+#   port   local port the proxy binds to
+#   env    optional: prod | test | dev   (prod triggers a confirm prompt)
+#
+# Lines starting with # and blank lines are ignored.
+# List everything with:  gcpsql ls       Connect with:  gcpsql <name|alias>
+#
+# --- examples (delete and replace with your own) -----------------------------
+# be-test,bt        your-project:us-central1:my-backend-test       5436   test
+# be-prod,bp        your-project:us-central1:my-backend            5446   prod
+# provider-test,pt  your-project:us-central1:my-provider-test      5437   test
+# provider-prod,pp  your-project:us-central1:my-provider           5447   prod

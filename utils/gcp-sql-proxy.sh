@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 
 # GCP Cloud SQL Proxy Utility
-# Helps select and connect to GCP SQL instances via Cloud SQL Auth Proxy
+# Connect to GCP SQL instances via the Cloud SQL Auth Proxy.
 #
-# Usage: ./gcp-sql-proxy.sh [--port PORT] [--instance INSTANCE_CONNECTION_NAME]
+# Two ways to reference an instance:
+#   1. By profile name from the registry (recommended, fast, offline):
+#        gcpsql be-test
+#   2. By raw connection name (no registry needed):
+#        gcpsql --instance project:region:instance --port 5432
+#
+# Registry: a whitespace-separated table at
+#   $GCP_SQL_PROXY_REGISTRY  (default: ~/.config/gcp-sql-proxy/instances.tsv)
+# seeded from utils/gcp-sql-instances.template by install.sh.
+#
+# Usage:
+#   gcpsql [PROFILE] [--port PORT] [--instance CONNECTION_NAME]
+#   gcpsql              # fzf-pick a profile from the registry
+#   gcpsql ls           # list registered profiles
+#   gcpsql --help
 
 set -e
 
@@ -19,6 +33,9 @@ INFO="ℹ️ "
 SUCCESS="✅"
 WARN="⚠️ "
 ERROR="❌"
+
+# Registry of predefined instances (data lives outside the repo)
+REGISTRY="${GCP_SQL_PROXY_REGISTRY:-$HOME/.config/gcp-sql-proxy/instances.tsv}"
 
 # Helper functions
 info() {
@@ -42,26 +59,78 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Check dependencies
-check_dependencies() {
-    local missing_deps=()
+# -----------------------------------------------------------------------------
+# Registry helpers
+# -----------------------------------------------------------------------------
 
-    if ! command_exists gcloud; then
-        missing_deps+=("gcloud (Google Cloud SDK)")
+# Emit normalized rows: names<TAB>instance<TAB>port<TAB>env  (env defaults to "-")
+# The names field is a comma-separated list: first token is canonical, rest are aliases.
+registry_rows() {
+    [ -f "$REGISTRY" ] || return 0
+    awk 'NF && $1 !~ /^#/ {print $1"\t"$2"\t"$3"\t"($4==""?"-":$4)}' "$REGISTRY"
+}
+
+# Every referenceable token — canonical names AND aliases (used by completion)
+registry_names() {
+    registry_rows | cut -f1 | tr ',' '\n'
+}
+
+# Look up a profile by canonical name or any alias; prints its row, non-zero if missing
+registry_lookup() {
+    registry_rows | awk -F'\t' -v n="$1" '
+        { c = split($1, a, ","); for (i = 1; i <= c; i++) if (a[i] == n) { print; found = 1 } }
+        END { exit !found }'
+}
+
+list_profiles() {
+    if [ -z "$(registry_rows)" ]; then
+        warn "No profiles registered in: $REGISTRY"
+        info "Add entries there, or run 'gcpsql' for interactive gcloud selection."
+        return 0
     fi
+    # Auto-size columns so long names/aliases don't break alignment
+    { printf "PROFILE\tALIASES\tENV\tPORT\tINSTANCE\n"; registry_display_rows; } \
+        | column -t -s $'\t'
+}
 
-    if ! command_exists fzf; then
-        missing_deps+=("fzf (fuzzy finder)")
-    fi
+# Emit display rows: canonical<TAB>aliases<TAB>env<TAB>port<TAB>instance
+registry_display_rows() {
+    registry_rows | awk -F'\t' '{
+        c = split($1, a, ","); canon = a[1];
+        al = ""; for (i = 2; i <= c; i++) al = al (al == "" ? "" : ",") a[i];
+        if (al == "") al = "-";
+        print canon "\t" al "\t" $4 "\t" $3 "\t" $2
+    }'
+}
 
-    if [ ${#missing_deps[@]} -gt 0 ]; then
-        error "Missing required dependencies:"
-        printf '  - %s\n' "${missing_deps[@]}"
-        echo ""
-        echo "Install with: brew install google-cloud-sdk fzf"
+# Interactive profile picker over the registry (no gcloud call).
+# Aliases are shown so you can fuzzy-match them; selection returns the canonical name.
+select_profile() {
+    registry_display_rows \
+        | column -t -s $'\t' \
+        | fzf --header="Select a SQL proxy profile" \
+              --preview="echo {}" --preview-window=up:3:wrap \
+        | awk '{print $1}'
+}
+
+# Refuse to silently connect to a prod-tagged instance
+confirm_prod() {
+    local env="$1" name="$2"
+    [ "$env" = "prod" ] || return 0
+    echo ""
+    echo -e "${RED}========================================${NC}"
+    echo -e "${RED}${WARN}PRODUCTION instance: ${name}${NC}"
+    echo -e "${RED}========================================${NC}"
+    read -p "Type 'yes' to connect to PRODUCTION: " ans
+    if [ "$ans" != "yes" ]; then
+        error "Aborted."
         exit 1
     fi
 }
+
+# -----------------------------------------------------------------------------
+# Dependency / environment checks
+# -----------------------------------------------------------------------------
 
 # Check if Application Default Credentials are set up
 check_adc() {
@@ -143,20 +212,14 @@ check_proxy_binary() {
     fi
 }
 
+# -----------------------------------------------------------------------------
+# gcloud-backed interactive fallback (used only when no profile/instance given
+# and the registry is empty)
+# -----------------------------------------------------------------------------
+
 # Get current GCP project
 get_current_project() {
     gcloud config get-value project 2>/dev/null
-}
-
-# List SQL instances
-list_sql_instances() {
-    local project="$1"
-
-    info "Fetching SQL instances from project: $project"
-
-    gcloud sql instances list \
-        --project="$project" \
-        --format="table(name,databaseVersion,region,tier,state)" 2>/dev/null
 }
 
 # Get instance connection name
@@ -199,11 +262,10 @@ get_default_port() {
     esac
 }
 
-# Interactive instance selection
-select_instance() {
+# Interactive instance selection via the gcloud API
+select_instance_from_gcloud() {
     local project="$1"
 
-    # Get instances with formatted output
     local instances
     instances=$(gcloud sql instances list \
         --project="$project" \
@@ -214,7 +276,6 @@ select_instance() {
         exit 1
     fi
 
-    # Use fzf for selection
     echo "$instances" | fzf \
         --header="Select a SQL instance (project: $project)" \
         --preview="echo {}" \
@@ -222,101 +283,142 @@ select_instance() {
         | awk '{print $1}'
 }
 
-# Main function
+# Resolve connection_name/port via the gcloud fallback path
+resolve_via_gcloud() {
+    if ! command_exists gcloud; then
+        error "gcloud not found — needed for interactive discovery."
+        info "Install with: brew install google-cloud-sdk, or register a profile in $REGISTRY"
+        exit 1
+    fi
+
+    local project
+    project=$(get_current_project)
+    if [ -z "$project" ]; then
+        error "No GCP project configured. Run: gcloud config set project PROJECT_ID"
+        exit 1
+    fi
+
+    local instance_name
+    instance_name=$(select_instance_from_gcloud "$project")
+    [ -z "$instance_name" ] && { error "No instance selected"; exit 1; }
+    info "Selected instance: $instance_name"
+
+    connection_name=$(get_instance_connection_name "$project" "$instance_name")
+    [ -z "$connection_name" ] && { error "Failed to get instance connection name"; exit 1; }
+
+    if [ -z "$port" ]; then
+        local db_type default_port
+        db_type=$(get_database_type "$project" "$instance_name")
+        default_port=$(get_default_port "$db_type")
+        echo ""
+        info "Database type: $db_type (default port: $default_port)"
+        read -p "Enter port to bind (default: $default_port): " port
+        port="${port:-$default_port}"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
+
+usage() {
+    echo "Usage: gcpsql [PROFILE] [OPTIONS]"
+    echo ""
+    echo "Reference a predefined profile from the registry, pick one interactively,"
+    echo "or pass a raw connection name."
+    echo ""
+    echo "Options:"
+    echo "  PROFILE                      Registered profile name (see 'gcpsql ls')"
+    echo "  --port PORT                  Port to bind the proxy to (overrides registry)"
+    echo "  --instance CONNECTION_NAME   Raw connection name (project:region:instance)"
+    echo "  ls, list                     List registered profiles"
+    echo "  -h, --help                   Show this help message"
+    echo ""
+    echo "Registry: $REGISTRY"
+    echo ""
+    echo "Examples:"
+    echo "  gcpsql be-test                        # connect via a registered profile"
+    echo "  gcpsql                                # fzf-pick a profile (or gcloud if empty)"
+    echo "  gcpsql ls                            # list profiles"
+    echo "  gcpsql --instance my-proj:us-central1:my-db --port 5432"
+}
+
 main() {
     local port=""
-    local instance_name=""
     local connection_name=""
+    local profile=""
+    local env="-"
 
-    # Parse arguments
+    # Parse arguments: first bare word is a subcommand or profile name
     while [[ $# -gt 0 ]]; do
         case $1 in
             --port)
-                port="$2"
-                shift 2
-                ;;
+                port="$2"; shift 2 ;;
             --instance)
-                connection_name="$2"
-                shift 2
-                ;;
+                connection_name="$2"; shift 2 ;;
             -h|--help)
-                echo "Usage: $0 [OPTIONS]"
-                echo ""
-                echo "Options:"
-                echo "  --port PORT                  Port to bind the proxy to"
-                echo "  --instance CONNECTION_NAME   Instance connection name (project:region:instance)"
-                echo "  -h, --help                   Show this help message"
-                echo ""
-                echo "Examples:"
-                echo "  $0                                    # Interactive mode"
-                echo "  $0 --port 5433                        # Interactive with custom port"
-                echo "  $0 --instance my-project:us-central1:my-instance --port 5432"
-                exit 0
-                ;;
-            *)
+                usage; exit 0 ;;
+            ls|list)
+                list_profiles; exit 0 ;;
+            __complete)
+                # Fast path for shell completion — no dependency checks
+                registry_names; exit 0 ;;
+            -*)
                 error "Unknown option: $1"
                 echo "Use --help for usage information"
-                exit 1
-                ;;
+                exit 1 ;;
+            *)
+                if [ -z "$profile" ]; then
+                    profile="$1"; shift
+                else
+                    error "Unexpected argument: $1"; exit 1
+                fi ;;
         esac
     done
 
     info "GCP Cloud SQL Proxy Utility"
     echo ""
 
-    # Check dependencies
-    check_dependencies
-
-    # Check Application Default Credentials
-    check_adc
-
-    # Check/install cloud-sql-proxy
-    check_proxy_binary
-
-    # Get current project
-    local project
-    project=$(get_current_project)
-
-    if [ -z "$project" ]; then
-        error "No GCP project configured. Run: gcloud config set project PROJECT_ID"
-        exit 1
-    fi
-
-    # If instance not provided, select interactively
-    if [ -z "$connection_name" ]; then
-        instance_name=$(select_instance "$project")
-
-        if [ -z "$instance_name" ]; then
-            error "No instance selected"
+    # Resolve the target connection
+    if [ -n "$profile" ]; then
+        # By registry profile name
+        local row
+        if ! row=$(registry_lookup "$profile"); then
+            error "Unknown profile: '$profile'"
+            info "Available profiles:"
+            list_profiles
             exit 1
         fi
-
-        info "Selected instance: $instance_name"
-
-        # Get connection name
-        connection_name=$(get_instance_connection_name "$project" "$instance_name")
+        local r_inst r_port
+        r_inst=$(echo "$row" | cut -f2)
+        r_port=$(echo "$row" | cut -f3)
+        env=$(echo "$row" | cut -f4)
+        connection_name="$r_inst"
+        port="${port:-$r_port}"   # --port still overrides the registry value
+    elif [ -n "$connection_name" ]; then
+        # Raw --instance mode: need a port
+        if [ -z "$port" ]; then
+            error "--instance requires --port (no registry entry to infer it from)"
+            exit 1
+        fi
     else
-        # Extract instance name from connection name
-        instance_name=$(echo "$connection_name" | cut -d':' -f3)
-    fi
-
-    if [ -z "$connection_name" ]; then
-        error "Failed to get instance connection name"
-        exit 1
-    fi
-
-    # Get database type and default port
-    local db_type
-    db_type=$(get_database_type "$project" "$instance_name")
-    local default_port
-    default_port=$(get_default_port "$db_type")
-
-    # If port not provided, prompt for it
-    if [ -z "$port" ]; then
-        echo ""
-        info "Database type: $db_type (default port: $default_port)"
-        read -p "Enter port to bind (default: $default_port): " port
-        port="${port:-$default_port}"
+        # Nothing specified: prefer the registry, fall back to gcloud discovery
+        if [ -n "$(registry_rows)" ]; then
+            if ! command_exists fzf; then
+                error "fzf not found — needed to pick a profile interactively."
+                info "Install with: brew install fzf, or pass a profile name: gcpsql <name>"
+                exit 1
+            fi
+            profile=$(select_profile)
+            [ -z "$profile" ] && { error "No profile selected"; exit 1; }
+            local row
+            row=$(registry_lookup "$profile") || { error "Profile vanished: $profile"; exit 1; }
+            connection_name=$(echo "$row" | cut -f2)
+            port=$(echo "$row" | cut -f3)
+            env=$(echo "$row" | cut -f4)
+        else
+            resolve_via_gcloud
+        fi
     fi
 
     # Validate port
@@ -325,19 +427,26 @@ main() {
         exit 1
     fi
 
+    # Ensure runtime prerequisites (binary + credentials)
+    check_proxy_binary
+    check_adc
+
+    # Guard production
+    confirm_prod "$env" "${profile:-$connection_name}"
+
     echo ""
     success "Starting Cloud SQL Proxy..."
     echo ""
     info "Connection details:"
+    [ -n "$profile" ] && echo "  Profile:        $profile"
+    [ "$env" != "-" ] && echo "  Environment:    $env"
     echo "  Instance:       $connection_name"
-    echo "  Database Type:  $db_type"
     echo "  Local Port:     $port"
     echo "  Connection:     localhost:$port"
     echo ""
     info "Press Ctrl+C to stop the proxy"
     echo ""
 
-    # Start the proxy
     cloud-sql-proxy "$connection_name" --port "$port"
 }
 

@@ -54,38 +54,65 @@ Lazy-loading wrapper for NVM (Node Version Manager). This significantly improves
 ## Executable Scripts
 
 ### `gcp-sql-proxy.sh`
-Interactive utility for connecting to GCP Cloud SQL instances via the Cloud SQL Auth Proxy.
+Utility for connecting to GCP Cloud SQL instances via the Cloud SQL Auth Proxy.
+
+Reference an instance three ways: by **profile name** from a registry (recommended), by **interactive pick**, or by **raw connection name**.
 
 **Features:**
-- Lists all SQL instances from your current GCP project
-- Interactive selection using `fzf` (fuzzy finder)
-- Auto-detects database type (PostgreSQL, MySQL, SQL Server)
-- Suggests appropriate default ports based on database type
+- **Named profiles** — `gcpsql be-test` resolves a short name to an instance + port from a registry (fast, offline, no `gcloud` call)
+- **Aliases** — each profile can carry comma-separated aliases; `gcpsql bt` works the same as `gcpsql be-test`
+- **Tab completion** — `gcpsql <tab>` completes profile names, aliases, and the `ls` subcommand (see `_gcpsql` in `.zshrc.user`)
+- **Production guard** — profiles tagged `env=prod` require a typed `yes` confirmation before connecting
+- Interactive fzf picker over the registry (`gcpsql` with no args)
+- gcloud-API fallback when the registry is empty (lists instances from the current project)
+- Auto-detects database type and default ports on the gcloud path (PostgreSQL, MySQL, SQL Server)
 - Checks and prompts for Application Default Credentials (ADC) setup if needed
-- Automatically downloads and installs `cloud-sql-proxy` binary to `~/.local/bin`
-- No sudo required (installs to user directory)
+- Automatically downloads and installs `cloud-sql-proxy` binary to `~/.local/bin` (no sudo)
+
+**Instance registry:**
+
+Predefined instances live in a whitespace-separated table, **outside** the repo so machine-specific connection names are never committed:
+
+```
+$GCP_SQL_PROXY_REGISTRY   # default: ~/.config/gcp-sql-proxy/instances.tsv
+```
+
+`install.sh` seeds it from `utils/gcp-sql-instances.template` (never overwriting an existing file). Format — one profile per line:
+
+```
+# names           instance_connection_name                  port   env
+be-test,bt        your-project:us-central1:my-backend-test  5436   test
+be-prod,bp        your-project:us-central1:my-backend       5446   prod
+```
+
+Columns: `names` (comma-separated — first is canonical, the rest are aliases; all are usable and tab-complete, e.g. `gcpsql bt`), `inst` (`project:region:instance`), `port` (local bind port), `env` (optional — `prod` triggers the confirmation prompt). Add an instance = one line; no shell aliases needed.
 
 **Requirements:**
-- `gcloud` (Google Cloud SDK) - for listing instances and authentication
-- `fzf` (fuzzy finder) - for interactive instance selection
-- Active GCP project configured: `gcloud config set project PROJECT_ID`
-- Application Default Credentials (ADC) - the script will prompt you to set this up if needed
+- Application Default Credentials (ADC) — always required; the script prompts to set this up if missing
+- `cloud-sql-proxy` binary — auto-downloaded to `~/.local/bin` on first run (no action needed)
+- `fzf` (fuzzy finder) — only for the interactive picker (`gcpsql` with no args); not needed when calling a profile/alias directly
+- `gcloud` (Google Cloud SDK) — only for the empty-registry fallback that lists instances from the current project; not needed for registry-based connections
 
 **Installation location:**
 - Script: `~/.dotfiles/utils/gcp-sql-proxy.sh`
 - Binary: `~/.local/bin/cloud-sql-proxy` (same location as JetBrains Toolbox shell scripts)
-- Alias: `gcpsql` (defined in `.zshrc.user`)
+- Registry: `~/.config/gcp-sql-proxy/instances.tsv` (seeded by `install.sh`, never committed)
+- Alias + completion: `gcpsql` and `_gcpsql` (defined in `.zshrc.user`)
 
 **Usage:**
 
 ```bash
-# Interactive mode - lists instances and prompts for port (recommended)
+# Connect via a registered profile or its alias (recommended) — tab-completes
+gcpsql be-test        # canonical name
+gcpsql bt             # alias for the same profile
+
+# List registered profiles
+gcpsql ls
+
+# Interactive: fzf-pick a profile from the registry (or gcloud if empty)
 gcpsql
 
-# Interactive with custom port specified
-gcpsql --port 5433
-
-# Direct connection using instance connection name
+# Raw connection using an instance connection name (no registry needed)
 gcpsql --instance my-project:us-central1:my-instance --port 5432
 
 # Show help and examples
@@ -205,7 +232,8 @@ utils/
 ├── .hushlogin             # Suppress login message (symlinked to ~/)
 ├── .npmrc                 # NPM configuration (symlinked to ~/)
 ├── .lazy-nvm.sh           # NVM lazy-loader (sourced by .zshrc.user)
-└── gcp-sql-proxy.sh       # GCP SQL Proxy utility (executable, aliased as 'gcpsql')
+├── gcp-sql-proxy.sh       # GCP SQL Proxy utility (executable, aliased as 'gcpsql')
+└── gcp-sql-instances.template  # Registry scaffold (seeded to ~/.config/gcp-sql-proxy/)
 ```
 
 All configuration files (`.hushlogin`, `.npmrc`) are symlinked to `$HOME` during installation via `install.sh`.

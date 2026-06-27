@@ -396,6 +396,19 @@ setup_utils() {
         safe_symlink "$DOTFILES_DIR/utils/.npmrc" "$HOME/.npmrc" ".npmrc"
     fi
 
+    # Seed the GCP SQL proxy instance registry from template (never overwrite —
+    # the live file holds real, machine-specific connection names)
+    local gcpsql_registry="$HOME/.config/gcp-sql-proxy/instances.tsv"
+    if [ ! -f "$gcpsql_registry" ] && [ -f "$DOTFILES_DIR/utils/gcp-sql-instances.template" ]; then
+        if [ "$DRY_RUN" = false ]; then
+            mkdir -p "$HOME/.config/gcp-sql-proxy"
+            cp "$DOTFILES_DIR/utils/gcp-sql-instances.template" "$gcpsql_registry"
+            warn "Created $gcpsql_registry from template. Add your Cloud SQL instances (gcpsql ls)."
+        else
+            info "[DRY RUN] Would create $gcpsql_registry from template"
+        fi
+    fi
+
     if [ "$DRY_RUN" = false ]; then
         success "Utility files configured"
     fi

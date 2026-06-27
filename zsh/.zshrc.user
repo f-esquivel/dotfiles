@@ -64,6 +64,18 @@ export YSU_MESSAGE_POSITION="after"   # show alias hint after command output, no
 export YSU_HARDCORE=0                 # set to 1 to *block* the command and force the alias
 
 # -----------------------------------------------------------------------------
+# Shell Options
+# -----------------------------------------------------------------------------
+
+# Zim's `environment` module sets NO_CLOBBER, which makes a bare `>` refuse to
+# overwrite an existing file and print "file exists: <path>". Some tools (e.g.
+# cmux's shell-integration shim installer) re-run a plain `> file` redirect on
+# every new shell and leak that warning to the terminal. Re-enable clobbering
+# here (sourced after Zim init, so this wins). Trade-off: `>` overwrites files
+# silently again — use `>|` / `>!` when you want a one-off guarded redirect.
+unsetopt NO_CLOBBER
+
+# -----------------------------------------------------------------------------
 # Aliases
 # -----------------------------------------------------------------------------
 
@@ -77,6 +89,15 @@ alias phpext="$DOTFILES_DIR/scripts/php-extensions.sh"
 alias phpsetup="$DOTFILES_DIR/scripts/php-setup.sh"
 alias rzsh="source $DOTFILES_DIR/zsh/.zshrc.user"
 alias kc-redirect-uri="$DOTFILES_DIR/scripts/kc-redirect-uri.sh"
+
+# Tab-complete gcpsql with profile names from the instance registry.
+# Zim runs compinit before this file is sourced, so compdef is available here.
+_gcpsql() {
+    local -a profiles
+    profiles=(${(f)"$("$DOTFILES_DIR/utils/gcp-sql-proxy.sh" __complete 2>/dev/null)"})
+    compadd ls list -- "${profiles[@]}"
+}
+compdef _gcpsql gcpsql 2>/dev/null
 
 # -----------------------------------------------------------------------------
 # Claude Code Configuration
