@@ -238,6 +238,7 @@ setup_zsh() {
     info "Setting up Zsh configuration..."
 
     # Symlink zsh configs
+    safe_symlink "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv" ".zshenv"
     safe_symlink "$DOTFILES_DIR/zsh/.zshrc" "$HOME/.zshrc" ".zshrc"
     safe_symlink "$DOTFILES_DIR/zsh/.zprofile" "$HOME/.zprofile" ".zprofile"
     safe_symlink "$DOTFILES_DIR/zsh/.zimrc" "$HOME/.zimrc" ".zimrc"
