@@ -7,9 +7,12 @@
 #   - running the raw-token printer (oidc-bearer)
 #   - extracting a secret straight from the Keychain (security ... -w/-g)
 #   - running curl verbosely (--trace / -v), which dumps Authorization headers
+#   - registering a token destination (oidc-token tenant add-host/remove-host),
+#     which would let an agent widen its own reach
 # Everything else passes — including oidc-token.sh (emits metadata only) and
-# oidc-curl.sh (mints + consumes a loopback request, returning only the response
-# body with the token scrubbed, so the token never enters context).
+# oidc-curl.sh (mints + consumes the request itself, returning only the response
+# body with the token scrubbed, so the token never enters context; where it may
+# send that token is policed by oidc-curl's own modes, not here).
 #
 # Known gap: the verbose-curl rule matches -v/--verbose/--trace as whole words
 # only, so bundled short forms (curl -sv / -fsSv) slip through — the tradeoff
@@ -37,8 +40,10 @@ deny() {
     log_event denied block "msg=$1"
     echo "OIDC tokens/secrets must never enter model context." >&2
     echo "To make an authenticated request from inside an agent, use the guarded" >&2
-    echo "wrapper (loopback only, token never surfaces):" >&2
+    echo "wrapper (the token never surfaces):" >&2
     echo '  oidc-curl --tenant <tenant> [--user <alias>] -- GET http://127.0.0.1:PORT/path' >&2
+    echo '  oidc-curl --tenant <tenant> --inspect -- GET https://<issuer-host>/...   # the tenant SSO provider' >&2
+    echo '  oidc-curl --tenant <tenant> --remote  -- GET https://<registered-host>/… # tenant add-host first' >&2
     echo "Otherwise have the user run it in their terminal, e.g.:" >&2
     echo '  curl -H "Authorization: Bearer $(oidc-bearer <tenant> [client] [alias])" https://api...' >&2
     exit 2
@@ -65,6 +70,16 @@ fi
 # runs. (Agents that need an authenticated request should use oidc-curl instead.)
 if printf '%s' "$CMD" | grep -qE '(^|[;&|`({]|&&|\|\||\$\()[[:space:]]*((bash|sh|zsh|ksh|dash|source|exec|command|eval|env|xargs)[[:space:]]+)?([[:alnum:]._/~+-]*/)?oidc-bearer(\.sh)?([[:space:]]|$|[;&|)`])'; then
     deny "running the raw-token printer (oidc-bearer)"
+fi
+
+# Self-authorizing a token destination. oidc-curl --remote will only reach hosts
+# on a tenant's allowedHosts, which makes `tenant add-host` the trust anchor of
+# that control: an agent that can register a host can send a live prod token
+# anywhere it likes, and the allowlist becomes decoration. The subcommand also
+# refuses to run without a TTY (which an agent shell lacks) — this rule is the
+# second lock, and the one that explains itself.
+if printf '%s' "$CMD" | grep -qE '(^|[[:space:]/])oidc-token(\.sh)?[[:space:]]+tenant[[:space:]]+(add|remove)-host([[:space:]]|$)'; then
+    deny "registering/revoking an OIDC token destination (tenant add-host is yours to run, in your own terminal)"
 fi
 
 # Pulling a secret directly out of the Keychain.

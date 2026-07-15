@@ -12,9 +12,11 @@
 # This separation is deliberate: Claude/agents can invoke this script to mint a
 # token, but the plaintext token never enters a tool result the model reads.
 #
-# To CALL a loopback API rather than just mint, use the sibling oidc-curl.sh: it
-# mints (delegating here) and makes the request in one step, returning only the
+# To CALL an API rather than just mint, use the sibling oidc-curl.sh: it mints
+# (delegating here) and makes the request in one step, returning only the
 # response body — prefer it over minting here and consuming the token separately.
+# It reaches loopback by default, the tenant's own issuer with --inspect, and a
+# tenant's registered allowedHosts with --remote (see: tenant add-host).
 #
 # HANDLE WITH CARE — this is an impersonation device. It mints real bearer
 # tokens (incl. user-password grants) against whatever issuer a tenant points
@@ -25,7 +27,11 @@
 # Configuration (all local, never committed) lives under ~/.claude/oidc/:
 #   tenants.json   tenant -> { type, baseUrl, realm, defaultClient,
 #                              clients:{ <id>:{grants:[…],scopes:[…],verified,lastChecked} },
-#                              users:{ <alias>:{username,label,verified,lastChecked} } }
+#                              users:{ <alias>:{username,label,verified,lastChecked} },
+#                              allowedHosts:[ <host>, … ] }
+#                  allowedHosts is the per-tenant list of off-box destinations
+#                  oidc-curl --remote may send this tenant's tokens to (exact
+#                  host match, https only). Absent/empty = loopback only.
 #   .cache/<tenant>.json   cached OIDC discovery (indefinite; --refresh rebuilds)
 #   run/<tenant>__<client>[__<alias>].token   cached token (chmod 600, pruned)
 # Secrets live in the macOS Keychain (per tenant), never on disk:
@@ -47,16 +53,22 @@
 #   oidc-token.sh tenant add
 #   oidc-token.sh tenant add-client    <tenant>
 #   oidc-token.sh tenant add-user      <tenant>
+#   oidc-token.sh tenant add-host      <tenant> <host>     # authorize a --remote target
 #   oidc-token.sh tenant set-secret    <tenant> <client>   # rotate client secret
 #   oidc-token.sh tenant set-password  <tenant> <alias>    # rotate user password
 #   oidc-token.sh tenant remove-client <tenant> <client>
 #   oidc-token.sh tenant remove-user   <tenant> <alias>
+#   oidc-token.sh tenant remove-host   <tenant> <host>
 #   oidc-token.sh tenant remove        <tenant>            # wipe tenant + secrets
 #
 #   --client  defaults to the tenant's defaultClient.
 #   --user    selects a password-grant by user ALIAS (resolved to the real
 #             username); pass the raw username and it is matched too.
-#   list      prints tenants/clients/users (aliases) as JSON — no secrets.
+#   list      prints tenants/clients/users/allowedHosts as JSON — no secrets.
+#
+# add-host/remove-host require a real terminal: they decide where live tokens are
+# allowed to travel, so that authorization is the human's to give, never an
+# agent's to grant itself.
 #
 # Exit: 0 ok · 1 usage · 2 missing dependency · 3 config error · 4 token request failed
 #
@@ -102,6 +114,9 @@ cmd_list() {
         type: (.value.type // "keycloak"),
         issuer: ((.value.baseUrl // "") + (if .value.realm then "/realms/" + .value.realm else "" end)),
         defaultClient: (.value.defaultClient // null),
+        # Where a token for this tenant may be sent by oidc-curl --remote. Empty
+        # means loopback-only (plus the issuer itself, via --inspect).
+        allowedHosts: (.value.allowedHosts // []),
         clients: ((.value.clients // {}) | to_entries
                   | map({id: .key, grants: (.value.grants // []),
                          verified: .value.verified,

@@ -12,8 +12,29 @@
 #   - the response (body + curl stderr) is scrubbed of the exact token string,
 #     and if the token still appears verbatim the request is refused outright —
 #     this defeats endpoints that reflect the Authorization header back,
-#   - targets are restricted to loopback (localhost / 127.0.0.0/8 / ::1), so a
-#     misfired call cannot ship a live credential off the machine.
+#   - redirects are never followed, so an authorized target cannot bounce the
+#     Authorization header to a host that was never authorized,
+#   - where the token may go is decided by MODE, not by the caller's URL alone
+#     (see below) — the default stays loopback, so a misfired call cannot ship a
+#     live credential off the machine.
+#
+# Modes — each widens the target set by exactly one well-understood step:
+#   (default)   loopback only (localhost / 127.0.0.0/8 / ::1). The token cannot
+#               leave the machine.
+#   --inspect   the tenant's OWN issuer host (from its baseUrl), plus nothing
+#               else. Needs no registration: the issuer is the party that MINTED
+#               the token, so handing it back reveals nothing it doesn't have.
+#               This is how you explore an SSO provider (userinfo, admin REST…).
+#   --remote    loopback, plus the hosts registered on THIS tenant's allowedHosts
+#               (exact match). Registration is human-only and interactive
+#               (oidc-token tenant add-host) — an agent cannot authorize a
+#               destination for itself, so a hallucinated or injected hostname
+#               never receives a live token. Scoped per tenant: a prod token can
+#               only reach hosts registered under the prod tenant.
+# --inspect and --remote are mutually exclusive. Off-box targets (both modes)
+# must be https — a bearer token never travels a real network in plaintext — and
+# every off-box request is audited to ~/.claude/logs/oidc.log (host/method/status,
+# never the body).
 #
 # Token selection mirrors oidc-token.sh / oidc-bearer.sh. Minting is delegated to
 # oidc-token.sh (metadata only), so ALL secret-touching code stays in
@@ -21,10 +42,11 @@
 #
 # Usage:
 #   oidc-curl.sh [--tenant <id>] [--client <id>] [--user <alias>] [--refresh]
+#                [--inspect | --remote]
 #                -- <METHOD> <URL> [--data <body>]... [--form <part>]... [--header 'K: V']...
 #     The tenant may be the first bare argument or given via --tenant.
 #     <METHOD>  one of GET HEAD POST PUT PATCH DELETE OPTIONS (case-insensitive)
-#     <URL>     http(s) URL whose host is loopback only
+#     <URL>     http(s) URL whose host the selected mode authorizes
 #     --data    raw request body; repeatable parts are concatenated, sent raw.
 #               Mutually exclusive with --form.
 #     --form    multipart/form-data part, passed verbatim to curl -F. Repeatable.
@@ -36,7 +58,8 @@
 #               script owns it). Repeatable.
 #
 # Exit: 0 ok · 1 usage · 2 missing dependency · 4 request/mint failed
-#       · 5 policy violation (non-loopback target / forbidden header)
+#       · 5 policy violation (target not authorized by the mode / plaintext
+#         off-box target / forbidden header)
 #
 # Compat: targets bash 3.2 (macOS system /bin/bash).
 
@@ -55,7 +78,11 @@ log_rid_init
 
 usage() {
     echo "usage: oidc-curl [--tenant <id>] [--client <id>] [--user <alias>] [--refresh]" >&2
+    echo "                 [--inspect | --remote]" >&2
     echo "                 -- <METHOD> <URL> [--data <body>]... [--form <part>]... [--header 'K: V']..." >&2
+    echo "  (default)  loopback targets only" >&2
+    echo "  --inspect  the tenant's own issuer host (SSO provider) — no registration needed" >&2
+    echo "  --remote   loopback + the tenant's registered allowedHosts (https only)" >&2
 }
 
 require_deps() {
@@ -65,32 +92,56 @@ require_deps() {
     done
 }
 
-# Accept only loopback hosts. Dies (exit 5) on anything that could leave the box.
-require_loopback() {  # url
-    local u="$1" host rest
+# Decide whether $url may receive a live bearer token, per the selected mode.
+# Sets target_kind (loopback|inspect|remote) and target_host for the audit trail.
+# Dies (exit 5) on anything the mode does not authorize.
+require_allowed_target() {  # url
+    local u="$1" host issuer_host
     case "$u" in
         http://*|https://*) ;;
         *) die "URL must start with http:// or https://" 5 ;;
     esac
-    host="${u#*://}"     # strip scheme
-    host="${host%%/*}"   # strip path/query/fragment
-    host="${host##*@}"   # strip userinfo
-    case "$host" in
-        \[*\]*) host="${host#\[}"; host="${host%%\]*}" ;;   # [::1] / [::1]:port
-        *:*)    host="${host%%:*}" ;;                       # host:port
-    esac
-    host="$(printf '%s' "$host" | tr 'A-Z' 'a-z')"
-    case "$host" in
-        localhost|::1|0:0:0:0:0:0:0:1) return 0 ;;
-        127.*)
-            rest="${host#127.}"
-            case "$rest" in
-                *[!0-9.]*) die "refusing non-loopback target '$host'" 5 ;;
-                *)         return 0 ;;
-            esac
+    host="$(oidc_url_host "$u")"
+    [ -n "$host" ] || die "could not parse a host out of the URL" 5
+    target_host="$host"
+
+    # Loopback is allowed in every mode except --inspect, which is deliberately
+    # narrow: it authorizes the issuer host and nothing else (if that issuer IS
+    # loopback, the check below matches it anyway).
+    if [ "$mode" != "inspect" ] && oidc_is_loopback_host "$host"; then
+        target_kind="loopback"
+        return 0
+    fi
+
+    case "$mode" in
+        inspect)
+            issuer_host="$(oidc_tenant_issuer_host "$tenant")"
+            [ -n "$issuer_host" ] \
+                || die "cannot resolve the issuer host for tenant '$tenant' — is it configured? (see: oidc-token.sh list)" 5
+            [ "$host" = "$issuer_host" ] \
+                || die "--inspect reaches only tenant '$tenant''s own issuer host ('$issuer_host'), not '$host' — to call another host, register it and use --remote" 5
+            target_kind="inspect"
             ;;
-        *) die "refusing non-loopback target '$host' (loopback only: localhost, 127.0.0.0/8, ::1)" 5 ;;
+        remote)
+            oidc_tenant_allows_host "$tenant" "$host" \
+                || die "host '$host' is not registered for tenant '$tenant' — a token for a tenant may only reach that tenant's own allowedHosts (see: oidc-token.sh list). Registering is yours to do, in your own terminal: oidc-token tenant add-host $tenant $host" 5
+            target_kind="remote"
+            ;;
+        *)
+            die "refusing non-loopback target '$host' — the default mode is loopback only (localhost, 127.0.0.0/8, ::1). Use --inspect to reach tenant '$tenant''s own issuer, or register the host and use --remote" 5
+            ;;
     esac
+
+    # A token on a real network must not travel in plaintext. Keyed on the host
+    # rather than the mode: --inspect skips the loopback shortcut above, so a
+    # tenant whose issuer IS a local Keycloak (http://localhost:8080) arrives
+    # here — and http to the local machine leaks nothing.
+    if ! oidc_is_loopback_host "$host"; then
+        case "$u" in
+            https://*) ;;
+            *) die "refusing to send a bearer token to '$host' over plaintext http — targets off this machine must be https" 5 ;;
+        esac
+    fi
 }
 
 # Canonical reason phrase for an HTTP status code (empty if unrecognized). Static
@@ -157,7 +208,13 @@ extract_detail() {  # <body> <content_type>
 require_deps
 
 # --- selection flags (consumed up to `--`) --------------------------------- #
-tenant="" client="" alias="" refresh=""
+tenant="" client="" alias="" refresh="" mode="loopback"
+target_kind="" target_host=""
+set_mode() {  # requested mode — the three are mutually exclusive
+    [ "$mode" = "loopback" ] || [ "$mode" = "$1" ] \
+        || die "--inspect and --remote are mutually exclusive (--inspect reaches the tenant's issuer; --remote reaches its registered hosts)" 1
+    mode="$1"
+}
 while [ $# -gt 0 ]; do
     arg="$1"; shift
     case "$arg" in
@@ -169,6 +226,8 @@ while [ $# -gt 0 ]; do
         --user|-u)     alias="${1:-}";  [ $# -gt 0 ] && shift || true ;;
         --user=*)      alias="${arg#*=}" ;;
         --refresh)     refresh="--refresh" ;;
+        --inspect)     set_mode inspect ;;
+        --remote)      set_mode remote ;;
         -h|--help)     usage; exit 0 ;;
         -*)            usage; die "unknown selection flag '$arg' (request goes after --)" 1 ;;
         *)             if [ -z "$tenant" ]; then tenant="$arg"
@@ -178,6 +237,25 @@ done
 [ -n "$tenant" ] || { usage; die "missing tenant (positional or --tenant <id>)" 1; }
 # Context for any error logged from here on (no secrets).
 LOG_TENANT="$tenant"; LOG_CLIENT="$client"; LOG_USER="$alias"
+
+# Audit every request that needed a mode to authorize it (--inspect / --remote),
+# recording only where the token went — never the body. Called for each such
+# attempt, success or not: by then the token has already been sent, so the line
+# must exist even when the response turns out to be unusable.
+#
+# Plain loopback (the default mode) is not audited, so existing log volume is
+# unchanged. --inspect IS audited even when the tenant's issuer happens to be
+# loopback itself: a call against an SSO provider is worth a trace wherever that
+# provider lives.
+log_target_audit() {  # http_code (may be empty on a transport failure)
+    case "$target_kind" in
+        inspect|remote) ;;
+        *) return 0 ;;
+    esac
+    log_event info "curl-$target_kind" "tenant=$tenant" ${client:+"client=$client"} \
+        ${alias:+"user=$alias"} "host=$target_host" "method=$method" \
+        ${1:+"http=$1"} "msg=$method $url"
+}
 
 # --- request: METHOD URL [--data ...] [--header ...] ----------------------- #
 method="${1:-}"; [ $# -gt 0 ] && shift || true
@@ -189,7 +267,7 @@ case "$method" in
     GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS) ;;
     *) die "unsupported method '$method'" 1 ;;
 esac
-require_loopback "$url"
+require_allowed_target "$url"
 
 # Validate each header as it is parsed (fail fast, before any token is minted):
 # reject newlines and any attempt to set Authorization — this script owns it.
@@ -259,11 +337,26 @@ elif [ "${#form_parts[@]}" -gt 0 ]; then
 fi
 
 # --- execute, scrub, guarantee no token surfaces --------------------------- #
+# No -L: redirects are never followed, so a target that 3xx's elsewhere cannot
+# bounce the Authorization header to a host the mode never authorized.
 set +e
 resp="$(curl "${c_args[@]}" "$url" -w $'\n%{http_code}\t%{content_type}' 2>"$sd/err")"
 rc=$?
 set -e
 err="$(cat "$sd/err" 2>/dev/null || true)"
+
+# curl writes the -w trailer itself (status + content type), so it carries no
+# response content and is safe to read before the body is scrubbed. It's absent
+# when the transport failed and curl produced nothing.
+http_code="" ctype=""
+if [ "$rc" -eq 0 ]; then
+    meta_line="${resp##*$'\n'}"
+    http_code="${meta_line%%$'\t'*}"
+    ctype="${meta_line#*$'\t'}"   # only picks the detail extractor; not logged
+fi
+
+# Audit before any failure path can exit: the token is already on the wire.
+log_target_audit "$http_code"
 
 # Best-effort redaction of the exact token (defeats header-reflecting endpoints).
 resp="${resp//$T/[REDACTED-TOKEN]}"
@@ -280,10 +373,7 @@ if [ "$rc" -ne 0 ]; then
     die "curl failed (exit $rc) for $method $url" 4
 fi
 
-meta_line="${resp##*$'\n'}"
 body="${resp%$'\n'*}"
-http_code="${meta_line%%$'\t'*}"
-ctype="${meta_line#*$'\t'}"   # used only to pick the detail extractor; not logged
 
 # A non-2xx response is a likely execution issue — trace it with the canonical
 # reason phrase and a short reason pulled from the body (JSON error field or HTML

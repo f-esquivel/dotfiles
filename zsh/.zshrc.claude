@@ -34,9 +34,12 @@ ccrrm() { CLAUDE_CODE_DISABLE_1M_CONTEXT=1 claude "/re-review-mr $*"; }
 
 # oidc-token: mint a token (metadata only — never prints the token) and manage
 # tenants/clients/users, e.g.:
-#   oidc-token list                        # tenants/clients/users (no secrets)
+#   oidc-token list                        # tenants/clients/users/allowedHosts
 #   oidc-token --tenant <id> [-u <alias>]  # mint; prints metadata only
 #   oidc-token tenant add                  # interactive registration
+#   oidc-token tenant add-host <id> <host> # authorize a real host for --remote
+# add-host is deliberately YOURS: it needs a real terminal (agents are refused),
+# because it decides where live bearer tokens are allowed to travel.
 oidc-token() { "$HOME/.claude/scripts/oidc-token.sh" "$@"; }
 
 # oidc-bearer: print the cached raw token for piping into your own curl. The ONE
@@ -44,9 +47,12 @@ oidc-token() { "$HOME/.claude/scripts/oidc-token.sh" "$@"; }
 #   curl -H "Authorization: Bearer $(oidc-bearer <tenant> [-c <client>] [-u <alias>])" https://api...
 oidc-bearer() { "$HOME/.claude/scripts/oidc-bearer.sh" "$@"; }
 
-# oidc-curl: mint + make a loopback request in one step, returning only the
-# response body (token never surfaces; non-loopback targets are refused):
-#   oidc-curl --tenant <tenant> [-u <alias>] -- GET http://127.0.0.1:PORT/path
+# oidc-curl: mint + make the request in one step, returning only the response
+# body (the token never surfaces). Where it may go is set by the mode:
+#   oidc-curl --tenant <t> [-u <alias>] -- GET http://127.0.0.1:PORT/path  # loopback
+#   oidc-curl --tenant <t> --inspect -- GET https://<issuer-host>/...      # its own SSO provider
+#   oidc-curl --tenant <t> --remote  -- GET https://<registered-host>/...  # tenant add-host first
+# Anything else is refused (exit 5); off-machine targets must be https.
 oidc-curl() { "$HOME/.claude/scripts/oidc-curl.sh" "$@"; }
 
 # -----------------------------------------------------------------------------

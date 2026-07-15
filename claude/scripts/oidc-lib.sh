@@ -74,3 +74,92 @@ oidc_default_client() {
     [ -f "$OIDC_TENANTS_FILE" ] || return 0
     jq -r --arg t "$1" '.[$t].defaultClient // empty' "$OIDC_TENANTS_FILE" 2>/dev/null
 }
+
+# --------------------------------------------------------------------------- #
+# Host policy — where a minted token is allowed to go.
+#
+# Two audiences share these, so they live here rather than in oidc-store.sh:
+# oidc-curl.sh (which sources only this lib) enforces them per request, and
+# oidc-manage.sh enforces them when registering a host. One definition of "what
+# is a host" / "is it loopback" / "is it allowed" keeps the check that guards a
+# request identical to the check that guarded the registration.
+#
+# The rule enforced on top of these (in oidc-curl.sh):
+#   loopback            always allowed — the token cannot leave the machine
+#   registered + https  allowed only with --remote, and only for the tenant the
+#                       host is registered under
+#   anything else       refused
+# --------------------------------------------------------------------------- #
+
+# Bare, lowercased host of an http(s) URL (empty if there isn't one). Strips
+# path/query/fragment before userinfo, so an '@' inside a query can't be mistaken
+# for a userinfo delimiter and hide the real host.
+oidc_url_host() {  # url -> host
+    local host="${1#*://}"
+    host="${host%%/*}"
+    host="${host%%\?*}"
+    host="${host%%#*}"
+    host="${host##*@}"
+    case "$host" in
+        \[*\]*) host="${host#\[}"; host="${host%%\]*}" ;;  # [::1] / [::1]:port
+        *:*)    host="${host%%:*}" ;;                      # host:port
+    esac
+    printf '%s' "$host" | tr 'A-Z' 'a-z'
+}
+
+# Is this host the local machine? (localhost, 127.0.0.0/8, ::1)
+oidc_is_loopback_host() {  # host -> 0 loopback / 1 not
+    case "$1" in
+        localhost|::1|0:0:0:0:0:0:0:1) return 0 ;;
+        127.*)
+            # Only digits+dots after "127." — "127.evil.com" is a DNS name that
+            # merely starts with 127, not a loopback address.
+            case "${1#127.}" in
+                *[!0-9.]*) return 1 ;;
+                *)         return 0 ;;
+            esac
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+# Is this a registrable remote host? A bare DNS hostname only: no scheme, port,
+# path or userinfo, and no wildcards — allowedHosts matching is exact, so a '*'
+# would silently never match rather than widen anything.
+oidc_valid_host() {  # host -> 0 valid / 1 not
+    case "$1" in
+        '')                    return 1 ;;
+        *[!A-Za-z0-9.-]*)      return 1 ;;
+        .*|*.|*..*)            return 1 ;;  # no empty labels
+        # No dash-edged label anywhere (RFC 1123): at the host edges, and — via
+        # the ".-" / "-." pairs — at any interior label boundary too.
+        -*|*-|*.-*|*-.*)       return 1 ;;
+        *)                     return 0 ;;
+    esac
+}
+
+# Is <host> registered on <tenant>'s allowedHosts? Exact match, and deliberately
+# scoped to ONE tenant: a token minted for tenant A may never be sent to a host
+# that only tenant B authorized.
+oidc_tenant_allows_host() {  # tenant host -> 0 allowed / 1 not
+    [ -f "$OIDC_TENANTS_FILE" ] || return 1
+    jq -e --arg t "$1" --arg h "$2" \
+        '((.[$t].allowedHosts // []) | index($h)) != null' \
+        "$OIDC_TENANTS_FILE" >/dev/null 2>&1
+}
+
+# Host of the tenant's own issuer — the SSO provider that mints its tokens
+# (Keycloak composes the issuer from baseUrl+realm, so the host is baseUrl's;
+# other types carry an explicit issuer). Empty when the tenant is unknown or
+# malformed. This host needs no allowedHosts entry: it is the party that ISSUED
+# the token, so handing the token back to it reveals nothing it doesn't have.
+oidc_tenant_issuer_host() {  # tenant -> host
+    [ -f "$OIDC_TENANTS_FILE" ] || return 0
+    local base
+    base="$(jq -r --arg t "$1" '
+        .[$t] // empty
+        | if (.type // "keycloak") == "keycloak" then (.baseUrl // "") else (.issuer // "") end
+    ' "$OIDC_TENANTS_FILE" 2>/dev/null)" || return 0
+    [ -n "$base" ] || return 0
+    oidc_url_host "$base"
+}
