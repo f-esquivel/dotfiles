@@ -118,7 +118,7 @@ The `/graphify` skill builds a queryable knowledge graph from any folder of file
 Prefer dispatching the matching subagent over hand-rolling the operation — the agents route through guarded resolvers (Keychain-backed secrets, audit logging, safety deny-lists) that ad-hoc commands bypass.
 
 * **DB work** — Postgres/MySQL audits, queries, schema introspection, executions against a locally-reachable database → dispatch `db-agent`. Never hand-roll `psql`/`mysql` for this; the `db-guard` hook blocks raw clients aimed at non-loopback hosts regardless. Targets are aliases in the global registry (`db-agent list`); writes roll back unless the user explicitly asks to persist.
-* **OIDC tokens** — minting an M2M token or impersonating a user (password grant) for manual API testing → dispatch `oidc-token`. Never print tokens into context; the `oidc-guard` hook blocks the raw-token printer.
+* **OIDC tokens** — minting an M2M token or impersonating a user (password grant) for manual API testing, calling an API as that identity, or exploring a tenant's Keycloak realm → dispatch `oidc-token`. Never print tokens into context; the `oidc-guard` hook blocks the raw-token printer. `oidc-curl` reaches loopback by default, the tenant's own issuer with `--inspect`, and hosts pre-registered for that tenant with `--remote`. Authorizing a host (`oidc-token tenant add-host`) is **yours alone** — it needs a real terminal and the guard blocks agents from it, so an agent can never widen where a live token may be sent.
 
 ## Secret Hygiene
 

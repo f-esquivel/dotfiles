@@ -127,8 +127,9 @@ so there is nothing to commit or exclude. One JSON object per line (JSONL).
 - **Core keys:** `ts, agent, script, level (error|denied|info), op, rid`, plus context (`alias`/`tenant`/`client`/`grant`/`user`/`host`/`exit`/`http`).
 - **HTTP errors** (oidc-curl non-2xx) also carry `reason` (canonical status phrase) and `detail` (short reason from the body — JSON error field or HTML `<title>`, truncated + token-scrubbed). Raw bodies are never logged.
 - **`rid`** correlates a single invocation across processes — e.g. `oidc-curl` exports it so its delegated `oidc-token` mint shares the id.
-- **Scope:** db-agent logs every operation (`info` reads/writes + `denied`); oidc logs **errors and denials only** (no successful-mint lines). Secrets/tokens/response bodies are never logged.
-- **Query:** `jq -c 'select(.level=="error")' ~/.claude/logs/oidc.log` · `jq -c 'select(.rid=="<id>")' ~/.claude/logs/*.log`
+- **Scope:** db-agent logs every operation (`info` reads/writes + `denied`); oidc logs **errors, denials, and every off-loopback request** (`curl-inspect` / `curl-remote` — see below). Successful mints and plain loopback calls stay unlogged. Secrets/tokens/response bodies are never logged.
+- **Token destinations** (`op: curl-inspect` / `curl-remote`) — one `info` line per request that `oidc-curl` had to authorize beyond plain loopback, carrying `host`/`method`/`http`. Written before the response is even read, so a request that fails still leaves a trace of where the token went. This is the record of which hosts have seen a token for a tenant.
+- **Query:** `jq -c 'select(.level=="error")' ~/.claude/logs/oidc.log` · `jq -c 'select(.rid=="<id>")' ~/.claude/logs/*.log` · `jq -c 'select(.op=="curl-remote") | {ts,tenant,user,host,http}' ~/.claude/logs/oidc.log`
 
 ### Project-Local Configs (NOT symlinked)
 
