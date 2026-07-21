@@ -144,6 +144,10 @@ Never read secret material into context — not via Read, Grep, Bash, or any int
 * When unsure about commit scope or conventions — ask before committing
 * Follow SRP for both code and commits — split by concern, don't merge unrelated changes
 
+## Code Quality
+
+* **A paragraph-long comment defending a workaround means the code is wrong — fix the code.** If correctness rests on prose the reader must absorb before touching the code, the design has leaked its complexity into the comment. Fold the reasoning back into the structure — better names, a guard clause, an extracted function, the right type — so the invariant is enforced by the code, not promised by a note. A short comment on genuine external constraints (an API quirk, a browser bug, a spec footnote) is fine; a long apology for the code's own shape is not.
+
 ## GitLab/GitHub Workflow
 
 * Before creating MRs/PRs via CLI — always show a draft preview of title, description, and labels for approval first
